@@ -171,6 +171,39 @@ metered or slow connection; everyone else gets the poster.
 Full specifications — filenames, dimensions, aspect ratios, compression and
 alt-text rules — are in [`docs/asset-guide.md`](docs/asset-guide.md).
 
+### Updating photos without a deploy
+
+There are two ways to put a photo on the site, and they coexist:
+
+| | Where it lives | Who can do it | When to use it |
+| --- | --- | --- | --- |
+| **In the repo** | `public/media/`, wired up in `src/content/projects.ts` | anyone editing code | the permanent set — covers, hero, service images |
+| **`/admin/media`** | the project's Vercel Blob store | anyone with the admin token | adding case-study photos after launch |
+
+The admin tool only ever *adds to* a project's gallery; the entries in
+`src/content/projects.ts` are untouched, so the repo stays the source of truth
+for everything that shipped with the build.
+
+An upload is resized to the crop you pick, converted to WebP, and **stripped of
+metadata** — match photography routinely carries GPS coordinates, and blob
+storage is public. Alt text is required in both languages, the same rule the
+asset guide sets for hand-added assets.
+
+To switch it on:
+
+1. Vercel dashboard → **Storage** → create a **Blob** store and connect it to
+   the project. That sets `BLOB_READ_WRITE_TOKEN` automatically.
+2. Set `ADMIN_MEDIA_TOKEN` to at least 32 characters
+   (`openssl rand -hex 32`). Anything shorter is refused rather than trusted.
+3. Redeploy, then open `/admin/media`.
+
+With either variable missing, `/admin/media` says exactly what is still needed
+and the site renders precisely as it does today. Nothing half-works.
+
+Case studies stay statically rendered and revalidate every 5 minutes; an upload
+also refreshes its own case study immediately. Storage lives behind
+`src/lib/photo-storage.ts`, so moving off Vercel Blob means rewriting one file.
+
 ---
 
 ## Contact form

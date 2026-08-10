@@ -7,8 +7,8 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        // The enquiry endpoint has nothing to index.
-        disallow: ['/api/'],
+        // The API endpoints and the private media tool have nothing to index.
+        disallow: ['/api/', '/admin/'],
       },
     ],
     sitemap: `${site.url}/sitemap.xml`,

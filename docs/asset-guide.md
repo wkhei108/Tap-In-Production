@@ -9,6 +9,12 @@ and prints the file path it is waiting for. Adding an asset is always the same
 two steps: **drop the file in the right folder, set the path in the content
 file.**
 
+> **Case-study photos can also be added without a deploy.** Once a Vercel Blob
+> store is connected, `/admin/media` uploads straight into a project's gallery
+> and applies the sizes below for you. See README → Media. Everything else on
+> this page — covers, hero, service and social imagery — still goes through the
+> repo.
+
 ---
 
 ## Folder structure
@@ -71,7 +77,7 @@ expects, so you can also just read it off the page.
 | Hero poster                 | 2400 × 1350   | 16:9   | WebP / AVIF | < 250 KB    |
 | Hero showreel               | 1920 × 1080   | 16:9   | MP4 + WebM  | < 4 MB      |
 | Landscape case-study image  | 2000 × 1250   | 16:10  | WebP / AVIF | < 300 KB    |
-| Portrait editorial image    | 1400 × 1800   | 3:4    | WebP / AVIF | < 300 KB    |
+| Portrait editorial image    | 1350 × 1800   | 3:4    | WebP / AVIF | < 300 KB    |
 | Square social image         | 1400 × 1400   | 1:1    | WebP / AVIF | < 250 KB    |
 | Client logo                 | vector        | —      | SVG         | < 20 KB     |
 

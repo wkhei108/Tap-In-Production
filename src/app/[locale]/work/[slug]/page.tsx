@@ -22,6 +22,15 @@ import {
 } from '@/content/projects';
 import { isLocale, locales, pathFor, type Locale } from '@/lib/i18n';
 import { breadcrumbJsonLd, buildMetadata } from '@/lib/seo';
+import { readManifest } from '@/lib/photo-storage';
+import { toMediaItem } from '@/lib/photo-schema';
+
+/**
+ * Case studies stay statically rendered; this window is how long a photo
+ * uploaded through /admin/media can take to appear if the upload's own
+ * `revalidatePath` call did not reach this deployment.
+ */
+export const revalidate = 300;
 
 export function generateStaticParams() {
   return locales.flatMap((locale) =>
@@ -66,6 +75,12 @@ export default async function ProjectPage({
   const locale: Locale = raw;
   const dict = getDictionary(locale);
   const related = getRelatedProjects(slug, 3);
+
+  // Photos uploaded through the admin tool extend the gallery declared in
+  // src/content/projects.ts; with no Blob store connected this is empty and
+  // the page renders exactly as it always has.
+  const managed = await readManifest(project.slug);
+  const gallery = [...project.gallery, ...managed.items.map(toMediaItem)];
 
   const breadcrumbs = breadcrumbJsonLd([
     { name: dict.nav.home, path: pathFor(locale, 'home') },
@@ -207,7 +222,7 @@ export default async function ProjectPage({
       </section>
 
       {/* 8. Gallery */}
-      {project.gallery.length > 0 ? (
+      {gallery.length > 0 ? (
         <section className="shell py-10 md:py-14" aria-labelledby="project-gallery">
           <h2
             id="project-gallery"
@@ -217,7 +232,7 @@ export default async function ProjectPage({
           </h2>
           <div className="mt-8">
             <ProjectGallery
-              items={project.gallery}
+              items={gallery}
               locale={locale}
               slug={project.slug}
               labels={{
