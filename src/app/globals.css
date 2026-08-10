@@ -1,0 +1,404 @@
+@import 'tailwindcss';
+
+/* ==========================================================================
+   TAP IN. — design tokens
+   Single source of truth for colour, type, spacing and motion.
+   Change a value here and it propagates through the whole site.
+   ========================================================================== */
+
+@theme {
+  /* --- Surfaces ------------------------------------------------------- */
+  --color-ink: #070a0d; /* primary background */
+  --color-surface: #11171b; /* raised surface */
+  --color-surface-2: #182026; /* second level surface / hover */
+  --color-line: rgba(255, 255, 255, 0.14); /* subtle border */
+  --color-line-strong: rgba(255, 255, 255, 0.28);
+
+  /* --- Text ----------------------------------------------------------- */
+  --color-bone: #f4f6f1; /* primary text */
+  --color-mute: #9ea7ae; /* muted text — 8.2:1 on ink */
+
+  /* --- Accents -------------------------------------------------------- */
+  --color-lime: #d7ff20; /* TAP IN. signature — 17:1 on ink */
+
+  /* BUILD-A-CLUB — blue. `club` is the brand blue (large text, fills,
+     borders); `club-ink` is the AA-safe tint for body-size text on dark. */
+  --color-club: #2368d8;
+  --color-club-ink: #7fb0ff;
+  --color-club-deep: #0f2f63;
+
+  /* BUILD-A-GAME — pitch green. Same two-step pattern as above. */
+  --color-game: #137a49;
+  --color-game-ink: #35d98a;
+  --color-game-deep: #0a2e1e;
+
+  /* --- Typography ----------------------------------------------------- */
+  /* CJK stack resolves to the system Traditional Chinese face on HK
+     devices (PingFang HK on iOS/macOS, JhengHei on Windows, Noto on
+     Android) — nothing to download, correct HK glyph shapes. */
+  --font-cjk:
+    'PingFang HK', 'PingFang TC', 'Hiragino Sans CNS', 'Microsoft JhengHei',
+    'Noto Sans HK', 'Noto Sans TC', 'Source Han Sans HK', sans-serif;
+
+  --font-display:
+    var(--font-barlow-condensed), 'Barlow Condensed', 'Oswald',
+    'Arial Narrow', var(--font-cjk);
+  --font-sans:
+    var(--font-inter), 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, Helvetica, Arial, var(--font-cjk);
+  --font-mono:
+    ui-monospace, 'SFMono-Regular', 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+
+  /* Fluid display scale — cinematic on desktop, readable at 360px. */
+  /* Sized so "BUILD THE CLUB." holds one line from 360px up — the two-line
+     lock-up is the point of the hero. */
+  --text-display-2xl: clamp(2.55rem, 9vw, 7.5rem);
+  --text-display-2xl--line-height: 0.88;
+  --text-display-2xl--letter-spacing: -0.02em;
+
+  --text-display-xl: clamp(2.6rem, 8.5vw, 6rem);
+  --text-display-xl--line-height: 0.9;
+  --text-display-xl--letter-spacing: -0.015em;
+
+  --text-display-lg: clamp(2.1rem, 5.5vw, 3.9rem);
+  --text-display-lg--line-height: 0.94;
+  --text-display-lg--letter-spacing: -0.01em;
+
+  --text-display-md: clamp(1.65rem, 3.6vw, 2.6rem);
+  --text-display-md--line-height: 1;
+
+  --text-display-sm: clamp(1.3rem, 2.4vw, 1.75rem);
+  --text-display-sm--line-height: 1.05;
+
+  --text-lead: clamp(1.02rem, 1.5vw, 1.25rem);
+  --text-lead--line-height: 1.6;
+
+  --text-meta: 0.72rem;
+  --text-meta--line-height: 1.1;
+  --text-meta--letter-spacing: 0.16em;
+
+  /* --- Radii — sharp to lightly rounded only ------------------------- */
+  --radius-none: 0px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* --- Layout --------------------------------------------------------- */
+  --shell-max: 1460px;
+
+  /* --- Motion --------------------------------------------------------- */
+  --ease-out-broadcast: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-soft: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    background-color: var(--color-ink);
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+    /* `clip`, not `hidden`: `overflow-x: hidden` forces the other axis to
+       `auto`, which turns the element into a scroll container and breaks
+       sticky positioning and scroll anchoring. `clip` just clips. */
+    overflow-x: clip;
+  }
+
+  /* Anchor links land below the fixed header. */
+  html:focus-within {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--color-ink);
+    color: var(--color-bone);
+    font-family: var(--font-sans);
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    /* Instagram's in-app browser reports a shifting viewport; never let a
+       section push the document sideways. */
+    overflow-x: clip;
+  }
+
+  /* Traditional Chinese pages: slightly more line height, no condensed
+     Latin tracking games on long-form text. */
+  html[lang^='zh'] body {
+    line-height: 1.75;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-lime);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background: var(--color-lime);
+    color: var(--color-ink);
+  }
+
+  /* Media never collapses before it loads. */
+  img,
+  video,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   Components — small, reusable primitives used across the site
+   ========================================================================== */
+
+@layer components {
+  /* Page gutter + max width. Includes iPhone safe-area insets so content
+     clears the notch in landscape and the home indicator area. */
+  .shell {
+    width: 100%;
+    max-width: var(--shell-max);
+    margin-inline: auto;
+    padding-inline: clamp(1.125rem, 4vw, 3.5rem);
+    padding-inline-start: max(clamp(1.125rem, 4vw, 3.5rem), env(safe-area-inset-left));
+    padding-inline-end: max(clamp(1.125rem, 4vw, 3.5rem), env(safe-area-inset-right));
+  }
+
+  /* Condensed uppercase display treatment (Latin only — see .display-cjk). */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+  }
+
+  /* Traditional Chinese headings: same weight and scale, but no uppercase
+     transform and no negative tracking, which mangles CJK rhythm. */
+  .display-cjk {
+    font-family: var(--font-cjk);
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0.01em;
+    line-height: 1.15;
+  }
+
+  /* Production-note / score-strip label. */
+  .meta {
+    font-family: var(--font-mono);
+    font-size: var(--text-meta);
+    line-height: 1.1;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+  }
+
+  html[lang^='zh'] .meta {
+    letter-spacing: 0.08em;
+  }
+
+  /* Hairline rule that reads as a touchline marking. */
+  .touchline {
+    position: relative;
+    border-top: 1px solid var(--color-line);
+  }
+
+  .touchline::before {
+    content: '';
+    position: absolute;
+    inset-block-start: -1px;
+    inset-inline-start: 0;
+    width: clamp(48px, 8vw, 120px);
+    height: 1px;
+    background: var(--color-lime);
+  }
+
+  /* Match-ticket chip: perforated left edge, mono type. */
+  .ticket {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.625rem 0.375rem 0.75rem;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-xs);
+    background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+    backdrop-filter: none;
+  }
+
+  .ticket::before {
+    content: '';
+    position: absolute;
+    inset-block: 4px;
+    inset-inline-start: 3px;
+    width: 1px;
+    background-image: linear-gradient(
+      to bottom,
+      var(--color-line-strong) 0 3px,
+      transparent 3px 6px
+    );
+  }
+
+  /* Minimum 44px tap target for anything finger-sized. */
+  .tap {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Safety net for visually hidden text.
+     `.sr-only` is absolutely positioned; with no positioned ancestor its
+     containing block becomes the viewport, so inside a horizontal scroller it
+     escapes the clip and silently widens the document. Giving its parent a
+     positioned context keeps it clipped with everything else. */
+  :where(a, button, li, span, figure, h1, h2, h3, p):has(> .sr-only) {
+    position: relative;
+  }
+
+  /* Underline that wipes in from the left — nav + inline links. */
+  .wipe-link {
+    position: relative;
+  }
+
+  .wipe-link::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -4px;
+    height: 1px;
+    width: 100%;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.32s var(--ease-out-broadcast);
+  }
+
+  .wipe-link:hover::after,
+  .wipe-link:focus-visible::after,
+  .wipe-link[data-active='true']::after {
+    transform: scaleX(1);
+  }
+
+  /* Entrance transition driven by <Reveal>.
+     No `data-reveal` attribute means "visible" — the component only sets
+     `pending` once it has an observer ready to set `shown`, so content is
+     never left hidden by a script that did not run. */
+  .reveal[data-reveal='pending'] {
+    opacity: 0;
+    transform: translate3d(0, 1.5rem, 0);
+  }
+
+  .reveal[data-reveal] {
+    transition:
+      opacity 0.66s var(--ease-out-broadcast),
+      transform 0.66s var(--ease-out-broadcast);
+    transition-delay: var(--reveal-delay, 0s);
+    will-change: opacity, transform;
+  }
+
+  .reveal[data-reveal='shown'] {
+    opacity: 1;
+    transform: none;
+    will-change: auto;
+  }
+
+  .reveal-fade[data-reveal='pending'] {
+    transform: translate3d(0, 0.5rem, 0);
+  }
+
+  /* Contact-sheet grid lines used behind editorial sections. */
+  .grid-lines {
+    background-image:
+      linear-gradient(to right, var(--color-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--color-line) 1px, transparent 1px);
+    background-size: 64px 64px;
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 20%, transparent 72%);
+    mask-image: radial-gradient(ellipse at center, #000 20%, transparent 72%);
+  }
+}
+
+/* ==========================================================================
+   Motion — every animation below is opt-out via prefers-reduced-motion
+   ========================================================================== */
+
+@keyframes tapin-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes tapin-wipe-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1.1em, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes tapin-sweep {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-marquee {
+  animation: tapin-marquee 42s linear infinite;
+}
+
+.animate-wipe-up {
+  animation: tapin-wipe-up 0.72s var(--ease-out-broadcast) both;
+}
+
+.animate-sweep {
+  transform-origin: left;
+  animation: tapin-sweep 0.9s var(--ease-out-broadcast) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .animate-marquee {
+    animation: none !important;
+    transform: none !important;
+  }
+}

@@ -1,0 +1,21 @@
+<!--
+  TEMPORARY WORDMARK.
+
+  Set in a condensed system stack rather than traced from a low-resolution
+  screenshot. Replace this file with the supplied vector logo before launch
+  (see docs/client-input-needed.md) — the filename is referenced from the
+  README and the asset guide, so a like-for-like swap needs no code changes.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 160" role="img" aria-label="TAP IN.">
+  <title>TAP IN.</title>
+  <rect width="640" height="160" fill="#070A0D"/>
+  <text
+    x="32"
+    y="118"
+    fill="#D7FF20"
+    font-family="'Barlow Condensed', 'Oswald', 'Arial Narrow', Impact, sans-serif"
+    font-size="120"
+    font-weight="700"
+    letter-spacing="-2"
+  >TAP IN.</text>
+</svg>

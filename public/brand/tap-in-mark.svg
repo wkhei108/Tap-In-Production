@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="TAP IN.">
+  <title>TAP IN.</title>
+  <rect width="512" height="512" fill="#070A0D"/>
+  <!-- Pitch motif: halfway line, centre circle, centre spot. -->
+  <g fill="none" stroke="#D7FF20" stroke-width="24">
+    <rect x="44" y="44" width="424" height="424"/>
+    <line x1="44" y1="256" x2="468" y2="256"/>
+    <circle cx="256" cy="256" r="104"/>
+  </g>
+  <circle cx="256" cy="256" r="26" fill="#D7FF20"/>
+</svg>
