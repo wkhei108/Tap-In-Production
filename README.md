@@ -185,6 +185,35 @@ source of truth for everything that shipped with the build. What it does own is
 the running order around those entries: uploads can be reordered, and a photo
 can be **pinned** to lead the gallery ahead of the built-in slots.
 
+### Managing campaigns
+
+`/admin` is the front door: every campaign with its cover thumbnail, a
+**no cover** flag on the ones still on a placeholder, drag-to-reorder (which
+sets the order on Work and in every grid), inline **Edit**, and **New
+campaign**. Drilling into one opens `/admin/media/<slug>` — the photo library.
+
+Editing covers the short form only: name, client, summary, category, filters,
+year, both languages. The long case-study prose (brief, challenge, approach,
+deliverables) stays in `src/content/projects.ts`, because that is where the
+compiler enforces English/Chinese parity. Campaigns created in the tool simply
+have none of it, and the case-study template skips those sections.
+
+**Renaming never changes the URL.** A slug is derived from the name once, at
+creation, and frozen — nothing anyone linked or Google indexed ever breaks.
+
+Categories are managed on the same screen. They resolve per request rather than
+from a compile-time enum, so one added through the tool is immediately usable;
+the `/work` filter chips are a separate, code-only concept and stay that way.
+
+### The homepage hero
+
+Also on `/admin`: the full-screen poster at the top of the homepage, plus an
+optional silent MP4 showreel. The poster is cropped to 2400×1350; the video is
+stored exactly as supplied, since nothing here can transcode it. The showreel is
+withheld on reduced motion and slow connections, so the poster has to stand on
+its own — which is why its alt text is required in both languages. With no hero
+saved the homepage renders its placeholder, exactly as before.
+
 ### Cover photos
 
 A campaign's cover is the image that represents it everywhere — its own page, the

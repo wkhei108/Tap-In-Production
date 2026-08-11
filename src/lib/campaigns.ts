@@ -4,12 +4,21 @@ import {
   campaignRecordSchema,
   emptySiteIndex,
   siteIndexSchema,
+  slugify,
   type CampaignCover,
   type CampaignRecord,
+  type HeroRecord,
   type SiteIndex,
 } from './campaign-schema';
 import { isPhotoStorageConfigured, type StorageResult } from './photo-storage';
-import { projects, type Project, type ProjectCategory, type WorkFilter } from '@/content/projects';
+import {
+  projectCategories,
+  projects,
+  type Project,
+  type ProjectCategory,
+  type WorkFilter,
+} from '@/content/projects';
+import type { Localised } from '@/content/services';
 
 /* ==========================================================================
    Campaign resolution.
@@ -238,6 +247,167 @@ export async function clearCampaignCover(slug: string): Promise<StorageResult<Si
 
   if (written.ok && existing && !existing.fromPhotoId) {
     await del(existing.url).catch(() => {});
+  }
+
+  return written;
+}
+
+/* ==========================================================================
+   Categories
+
+   Same overlay idea as campaigns: the code-defined set is the base, the index
+   adds to it. Resolved per request rather than baked into a module-level enum,
+   because a category added through the tool has to count immediately.
+   ========================================================================== */
+
+export type CategoryMap = Record<string, Localised>;
+
+export function mergeCategories(index: SiteIndex): CategoryMap {
+  return { ...projectCategories, ...(index.categories ?? {}) };
+}
+
+export async function resolveCategories(index?: SiteIndex): Promise<CategoryMap> {
+  return mergeCategories(index ?? (await readSiteIndex()));
+}
+
+/** Add a category. The key is derived from the English label, once. */
+export async function addCategory(
+  label: string,
+  labelZh: string,
+): Promise<StorageResult<{ key: string }>> {
+  const key = slugify(label);
+  if (!key) return { ok: false, reason: 'storage-error' };
+
+  const written = await mutateSiteIndex((index) => ({
+    ...index,
+    categories: {
+      ...(index.categories ?? {}),
+      [key]: { en: label, 'zh-hk': labelZh },
+    },
+  }));
+
+  if (!written.ok) return written;
+  return { ok: true, data: { key } };
+}
+
+/* ==========================================================================
+   Campaign records
+   ========================================================================== */
+
+/** A slug that is free, suffixing `-2`, `-3`… rather than overwriting. */
+export function availableSlug(desired: string, taken: Set<string>): string {
+  if (!taken.has(desired)) return desired;
+  for (let n = 2; n < 500; n += 1) {
+    const candidate = `${desired}-${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+  return `${desired}-${Date.now()}`;
+}
+
+type CampaignFields = Pick<
+  CampaignRecord,
+  | 'title'
+  | 'titleZh'
+  | 'clientName'
+  | 'clientNameZh'
+  | 'summary'
+  | 'summaryZh'
+  | 'category'
+  | 'filters'
+  | 'year'
+>;
+
+/**
+ * Create a campaign in the tool.
+ *
+ * The slug is derived from the name here and never changes again — renaming
+ * later edits the display name only.
+ */
+export async function createCampaign(
+  fields: CampaignFields,
+): Promise<StorageResult<{ slug: string }>> {
+  if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
+
+  const current = await readSiteIndex({ fresh: true });
+  const taken = new Set([...projects.map((p) => p.slug), ...Object.keys(current.campaigns)]);
+  const slug = availableSlug(slugify(fields.title ?? ''), taken);
+  if (!slug) return { ok: false, reason: 'storage-error' };
+
+  const written = await writeSiteIndex({
+    ...current,
+    campaigns: {
+      ...current.campaigns,
+      [slug]: campaignRecordSchema.parse({
+        ...fields,
+        origin: 'admin',
+        createdAt: new Date().toISOString(),
+      }),
+    },
+  });
+
+  if (!written.ok) return written;
+  return { ok: true, data: { slug } };
+}
+
+/**
+ * Edit a campaign's short-form fields.
+ *
+ * Works for both origins. On a code-defined campaign these become an overlay
+ * over `projects.ts`; the long-form prose is never touched, because it is not
+ * in this field set at all.
+ */
+export async function updateCampaign(
+  slug: string,
+  fields: CampaignFields,
+): Promise<StorageResult<SiteIndex>> {
+  return mutateSiteIndex((index) => ({
+    ...index,
+    campaigns: {
+      ...index.campaigns,
+      [slug]: campaignRecordSchema.parse({ ...index.campaigns[slug], ...fields }),
+    },
+  }));
+}
+
+/** Write a new running order across all campaigns. */
+export async function reorderCampaigns(slugs: string[]): Promise<StorageResult<SiteIndex>> {
+  return mutateSiteIndex((index) => {
+    const campaigns = { ...index.campaigns };
+    slugs.forEach((slug, position) => {
+      campaigns[slug] = campaignRecordSchema.parse({ ...campaigns[slug], order: position });
+    });
+    return { ...index, campaigns };
+  });
+}
+
+/* ==========================================================================
+   Homepage hero
+   ========================================================================== */
+
+export async function resolveHero(index?: SiteIndex): Promise<HeroRecord | null> {
+  return (index ?? (await readSiteIndex())).hero ?? null;
+}
+
+export async function setHero(hero: HeroRecord): Promise<StorageResult<SiteIndex>> {
+  return mutateSiteIndex((index) => ({
+    ...index,
+    hero: { ...hero, updatedAt: new Date().toISOString() },
+  }));
+}
+
+/** Remove the hero, and the files behind it — nothing else references them. */
+export async function clearHero(): Promise<StorageResult<SiteIndex>> {
+  const current = await readSiteIndex({ fresh: true });
+  const existing = current.hero;
+
+  const written = await mutateSiteIndex((index) => {
+    const { hero: _dropped, ...rest } = index;
+    return rest as SiteIndex;
+  });
+
+  if (written.ok && existing) {
+    await del(existing.posterUrl).catch(() => {});
+    if (existing.videoUrl) await del(existing.videoUrl).catch(() => {});
   }
 
   return written;

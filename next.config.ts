@@ -4,14 +4,14 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   images: {
-    // Built-in imagery ships from /public. Photos added through /admin/media
-    // live in the project's Vercel Blob store instead, under the same
-    // media/projects/<slug>/ layout.
+    // Built-in imagery ships from /public. Anything added through the admin
+    // tool — campaign photos, covers, the homepage hero poster — lives in the
+    // project's Vercel Blob store under the same media/ layout.
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '*.public.blob.vercel-storage.com',
-        pathname: '/media/projects/**',
+        pathname: '/media/**',
       },
     ],
     formats: ['image/avif', 'image/webp'],

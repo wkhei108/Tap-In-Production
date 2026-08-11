@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { photoAspects } from './photo-schema';
-import { projectCategories, workFilters } from '@/content/projects';
+import { workFilters } from '@/content/projects';
 
 /* ==========================================================================
    Campaign overlays.
@@ -10,8 +10,6 @@ import { projectCategories, workFilters } from '@/content/projects';
    top of it: a different display name, a different position, a cover photo —
    and, for campaigns created after launch, the whole (short) record.
    ========================================================================== */
-
-const categoryKeys = Object.keys(projectCategories) as [string, ...string[]];
 
 /** The cover as stored: a processed image plus the words it needs. */
 export const campaignCoverSchema = z.object({
@@ -50,7 +48,10 @@ export const campaignRecordSchema = z.object({
   /* --- Admin-created campaigns only ------------------------------------ */
   clientName: z.string().optional(),
   clientNameZh: z.string().optional(),
-  category: z.enum(categoryKeys).optional(),
+  /* A bare string, not an enum: a campaign may carry a category added at
+     runtime, and parsing must not reject it — a failed parse blanks the whole
+     index. Validity is checked at write time against the merged set. */
+  category: z.string().optional(),
   filters: z.array(z.enum(workFilters)).optional(),
   summary: z.string().optional(),
   summaryZh: z.string().optional(),
@@ -67,9 +68,35 @@ export type CampaignRecord = z.infer<typeof campaignRecordSchema>;
  * cast. `version` exists so a future format change is detected rather than
  * silently mis-read.
  */
+const localisedSchema = z.object({ en: z.string().min(1), 'zh-hk': z.string().min(1) });
+
+/** Categories added after launch, merged over the ones defined in code. */
+export const categoryMapSchema = z.record(z.string(), localisedSchema);
+
+/**
+ * The homepage hero. One per site, not per campaign.
+ *
+ * No transcript field, deliberately: the hero is muted, looped and
+ * `aria-hidden` — ambient decoration rather than the "meaningful video" that
+ * `MediaItem.transcript` exists for in the gallery.
+ */
+export const heroSchema = z.object({
+  posterUrl: z.string().url(),
+  posterAltText: z.string().min(1),
+  posterAltTextZh: z.string().min(1),
+  videoUrl: z.string().url().optional(),
+  updatedAt: z.string().optional(),
+});
+
+export type HeroRecord = z.infer<typeof heroSchema>;
+
 export const siteIndexSchema = z.object({
   version: z.literal(1),
   campaigns: z.record(z.string(), campaignRecordSchema),
+  /* Both optional, so indexes written before these existed still parse — the
+     same additive move as `pinned` on a photo. */
+  categories: categoryMapSchema.optional(),
+  hero: heroSchema.optional(),
 });
 
 export type SiteIndex = z.infer<typeof siteIndexSchema>;
@@ -83,19 +110,6 @@ export const emptySiteIndex = (): SiteIndex => ({ version: 1, campaigns: {} });
 const bilingual = (label: string) => ({
   en: z.string().trim().min(1, `${label} is required in English.`).max(160),
   zh: z.string().trim().min(1, `${label} is required in Chinese.`).max(160),
-});
-
-/** Renaming and reordering, sent as the complete list the tool is showing. */
-export const campaignOrderSchema = z.object({
-  campaigns: z
-    .array(
-      z.object({
-        slug: z.string().min(1),
-        title: z.string().trim().min(1).max(160),
-        titleZh: z.string().trim().min(1).max(160),
-      }),
-    )
-    .max(200),
 });
 
 /**
@@ -122,7 +136,10 @@ export const newCampaignSchema = z.object({
     .trim()
     .min(1, 'Summary is required in Chinese.')
     .max(400),
-  category: z.enum(categoryKeys, { message: 'Choose a category.' }),
+  /* A bare string here, not an enum: categories can be added at runtime, and
+     a module-level enum is frozen at import. The route checks the value
+     against the merged code+admin set before writing. */
+  category: z.string().trim().min(1, 'Choose a category.'),
   filters: z.array(z.enum(workFilters)).min(1, 'Choose at least one filter.'),
   year: z.string().trim().max(20).optional().or(z.literal('')),
 });
@@ -144,3 +161,32 @@ export function slugify(title: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 60);
 }
+
+/* ==========================================================================
+   Categories and campaign edits
+   ========================================================================== */
+
+export const newCategorySchema = z.object({
+  label: z.string().trim().min(1, 'Category name is required in English.').max(60),
+  labelZh: z.string().trim().min(1, 'Category name is required in Chinese.').max(60),
+});
+
+export type NewCategoryValues = z.infer<typeof newCategorySchema>;
+
+/** Editing an existing campaign: the same short form, against a known slug. */
+export const editCampaignSchema = newCampaignSchema.extend({
+  slug: z.string().trim().min(1),
+});
+
+export type EditCampaignValues = z.infer<typeof editCampaignSchema>;
+
+/** Reordering, sent as the complete list the tool is showing. */
+export const campaignReorderSchema = z.object({
+  slugs: z.array(z.string().min(1)).max(200),
+});
+
+/** Alt text for a hero poster. The file itself arrives as multipart. */
+export const heroTextSchema = z.object({
+  posterAltText: z.string().trim().min(1, 'Alt text is required in English.').max(125),
+  posterAltTextZh: z.string().trim().min(1, 'Alt text is required in Chinese.').max(125),
+});

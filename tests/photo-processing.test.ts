@@ -1,7 +1,7 @@
 // @vitest-environment node
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
-import { normalisePhoto } from '@/lib/photo-processing';
+import { heroPosterTarget, normaliseImage, normalisePhoto } from '@/lib/photo-processing';
 import { aspectTargets, photoAspects } from '@/lib/photo-schema';
 
 /** A solid-colour JPEG carrying EXIF (including a GPS tag) and an orientation. */
@@ -69,5 +69,28 @@ describe('normalisePhoto', () => {
 
   it('rejects a file that is not an image', async () => {
     await expect(normalisePhoto(Buffer.from('not an image'), 'square')).rejects.toThrow();
+  });
+});
+
+describe('normaliseImage / hero poster', () => {
+  it('crops a hero poster to the documented 16:9 target', async () => {
+    const output = await normaliseImage(await testPhoto(4000, 3000), heroPosterTarget);
+
+    expect(output.width).toBe(heroPosterTarget.width);
+    expect(output.height).toBe(heroPosterTarget.height);
+    expect(output.width / output.height).toBeCloseTo(16 / 9, 2);
+  });
+
+  it('keeps the hero ratio without upscaling a small source', async () => {
+    const output = await normaliseImage(await testPhoto(800, 600), heroPosterTarget);
+
+    expect(output.width).toBeLessThanOrEqual(800);
+    expect(output.width / output.height).toBeCloseTo(16 / 9, 2);
+  });
+
+  it('strips metadata from a hero poster too', async () => {
+    const output = await normaliseImage(await testPhoto(3000, 2000), heroPosterTarget);
+    const metadata = await sharp(output.body).metadata();
+    expect(metadata.exif).toBeUndefined();
   });
 });
