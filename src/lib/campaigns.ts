@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { del, list, put } from '@vercel/blob';
 
 import {
@@ -42,9 +43,7 @@ async function findIndexUrl(): Promise<string | null> {
   return blobs.find((blob) => blob.pathname === indexPath)?.url ?? null;
 }
 
-export async function readSiteIndex(
-  { fresh = false }: { fresh?: boolean } = {},
-): Promise<SiteIndex> {
+async function fetchSiteIndex({ fresh }: { fresh: boolean }): Promise<SiteIndex> {
   if (!isPhotoStorageConfigured()) return emptySiteIndex();
 
   try {
@@ -71,6 +70,22 @@ export async function readSiteIndex(
     console.error('[TAP IN.] Could not read the campaign index:', error);
     return emptySiteIndex();
   }
+}
+
+/**
+ * Read the index once per request.
+ *
+ * A page pulls campaigns, the hero, the site settings and its media slots out
+ * of the same document, and the header and footer ask for it again. `cache`
+ * collapses those into one read per render; `fresh` always goes to the store,
+ * because a write needs to see what is actually there.
+ */
+const readCachedSiteIndex = cache(() => fetchSiteIndex({ fresh: false }));
+
+export async function readSiteIndex(
+  { fresh = false }: { fresh?: boolean } = {},
+): Promise<SiteIndex> {
+  return fresh ? fetchSiteIndex({ fresh: true }) : readCachedSiteIndex();
 }
 
 export async function writeSiteIndex(index: SiteIndex): Promise<StorageResult<SiteIndex>> {

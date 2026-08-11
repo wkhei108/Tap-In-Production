@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X, Mail } from 'lucide-react';
 import { InstagramGlyph } from '@/components/ui/icons';
-import { site } from '@/content/site';
 import type { Locale } from '@/lib/i18n';
 import type { NavItem } from './SiteHeader';
 import LanguageSwitcher from './LanguageSwitcher';
@@ -14,6 +13,13 @@ type Props = {
   locale: Locale;
   items: NavItem[];
   contactHref: string;
+  /* Resolved server-side and passed in: this is a client component, so it
+     cannot read the overlay itself. */
+  contactDetails: {
+    email: string;
+    instagramUrl: string;
+    instagramHandle: string;
+  };
   labels: {
     open: string;
     close: string;
@@ -30,7 +36,13 @@ type Props = {
  * closes, focus is trapped while open, and the page behind is inert to
  * scrolling. Closes automatically on navigation.
  */
-export default function MobileMenu({ locale, items, contactHref, labels }: Props) {
+export default function MobileMenu({
+  locale,
+  items,
+  contactHref,
+  contactDetails,
+  labels,
+}: Props) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -179,20 +191,20 @@ export default function MobileMenu({ locale, items, contactHref, labels }: Props
 
               <div className="flex flex-col gap-3">
                 <a
-                  href={`mailto:${site.email}`}
+                  href={`mailto:${contactDetails.email}`}
                   className="tap flex items-center gap-3 text-sm text-mute transition-colors hover:text-bone"
                 >
                   <Mail aria-hidden="true" className="size-4 shrink-0" />
-                  {site.email}
+                  {contactDetails.email}
                 </a>
                 <a
-                  href={site.instagramUrl}
+                  href={contactDetails.instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="tap flex items-center gap-3 text-sm text-mute transition-colors hover:text-bone"
                 >
                   <InstagramGlyph className="size-4 shrink-0" />
-                  {site.instagramHandle}
+                  {contactDetails.instagramHandle}
                 </a>
               </div>
 

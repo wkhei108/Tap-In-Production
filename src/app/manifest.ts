@@ -1,10 +1,17 @@
 import type { MetadataRoute } from 'next';
-import { site } from '@/content/site';
+import { resolveBrand, resolveSite } from '@/lib/site-content';
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const site = await resolveSite();
+  const brand = await resolveBrand();
+
+  /* An uploaded mark replaces the one that ships in public/brand. */
+  const markSrc = brand.markUrl ?? '/brand/tap-in-mark.svg';
+  const markType = brand.markUrl ? undefined : 'image/svg+xml';
+
   return {
     name: `${site.name} — ${site.tagline.en}`,
-    short_name: 'TAP IN.',
+    short_name: site.name,
     description: site.tagline.en,
     start_url: '/en',
     display: 'standalone',
@@ -13,19 +20,9 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: 'en',
     categories: ['sports', 'business', 'photography'],
     icons: [
-      {
-        src: '/brand/tap-in-mark.svg',
-        sizes: 'any',
-        type: 'image/svg+xml',
-        purpose: 'any',
-      },
-      {
-        // The mark is drawn with generous padding, so it survives masking.
-        src: '/brand/tap-in-mark.svg',
-        sizes: 'any',
-        type: 'image/svg+xml',
-        purpose: 'maskable',
-      },
+      { src: markSrc, sizes: 'any', type: markType, purpose: 'any' },
+      // The mark is drawn with generous padding, so it survives masking.
+      { src: markSrc, sizes: 'any', type: markType, purpose: 'maskable' },
     ],
   };
 }

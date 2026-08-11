@@ -7,7 +7,7 @@ import FinalCTA from '@/components/sections/FinalCTA';
 import WorkExplorer from '@/components/work/WorkExplorer';
 import ProjectGrid from '@/components/work/ProjectGrid';
 
-import { getDictionary } from '@/content/dictionaries';
+import { resolveDictionary } from '@/lib/copy';
 import { type WorkFilter } from '@/content/projects';
 import { resolveProjects } from '@/lib/campaigns';
 import { isLocale, pathFor, type Locale } from '@/lib/i18n';
@@ -23,7 +23,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale: raw } = await params;
   if (!isLocale(raw)) return {};
-  const dict = getDictionary(raw);
+  const dict = await resolveDictionary(raw);
 
   return buildMetadata({
     locale: raw,
@@ -43,7 +43,7 @@ export default async function WorkPage({
   if (!isLocale(raw)) notFound();
 
   const locale: Locale = raw;
-  const dict = getDictionary(locale);
+  const dict = await resolveDictionary(locale);
   const projects = await resolveProjects();
 
   const filterLabels: Record<WorkFilter, string> = {

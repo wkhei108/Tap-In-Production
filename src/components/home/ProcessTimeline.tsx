@@ -1,11 +1,13 @@
-import { processSteps } from '@/content/services';
+import { resolveServiceContent } from '@/lib/copy';
 import Reveal from '@/components/ui/Reveal';
 import type { Locale } from '@/lib/i18n';
 
 /**
  * The five-phase game plan, drawn as a touchline running through the steps.
  */
-export default function ProcessTimeline({ locale }: { locale: Locale }) {
+export default async function ProcessTimeline({ locale }: { locale: Locale }) {
+  const { processSteps } = await resolveServiceContent();
+
   return (
     <ol className="relative grid gap-8 md:grid-cols-5 md:gap-5">
       {/* The line itself — decorative, hidden from the accessibility tree. */}

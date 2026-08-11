@@ -17,7 +17,7 @@ import PrimaryCTA from '@/components/ui/PrimaryCTA';
 import Reveal from '@/components/ui/Reveal';
 import FinalCTA from '@/components/sections/FinalCTA';
 
-import { getDictionary } from '@/content/dictionaries';
+import { resolveDictionary } from '@/lib/copy';
 import { resolveFeaturedProjects, resolveHero } from '@/lib/campaigns';
 import { isLocale, pathFor, type Locale } from '@/lib/i18n';
 import { buildMetadata } from '@/lib/seo';
@@ -33,7 +33,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale: raw } = await params;
   if (!isLocale(raw)) return {};
-  const dict = getDictionary(raw);
+  const dict = await resolveDictionary(raw);
 
   return buildMetadata({
     locale: raw,
@@ -54,7 +54,7 @@ export default async function HomePage({
   if (!isLocale(raw)) notFound();
 
   const locale: Locale = raw;
-  const dict = getDictionary(locale);
+  const dict = await resolveDictionary(locale);
   const featured = await resolveFeaturedProjects(4);
   const hero = await resolveHero();
 

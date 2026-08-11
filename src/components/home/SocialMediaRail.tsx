@@ -2,17 +2,18 @@ import MediaFrame from '@/components/media/MediaFrame';
 import SectionHeading from '@/components/ui/SectionHeading';
 import PrimaryCTA from '@/components/ui/PrimaryCTA';
 import { InstagramGlyph } from '@/components/ui/icons';
-import { getDictionary } from '@/content/dictionaries';
-import { site } from '@/content/site';
-import { socialPosts } from '@/content/social';
+import { resolveDictionary } from '@/lib/copy';
+import { resolveSite, resolveSocialPosts } from '@/lib/site-content';
 import type { Locale } from '@/lib/i18n';
 
 /**
  * "From the touchline" — a curated rail linking out to Instagram.
  * Horizontally scrollable on mobile, a grid from `md` up.
  */
-export default function SocialMediaRail({ locale }: { locale: Locale }) {
-  const dict = getDictionary(locale);
+export default async function SocialMediaRail({ locale }: { locale: Locale }) {
+  const dict = await resolveDictionary(locale);
+  const site = await resolveSite();
+  const socialPosts = await resolveSocialPosts();
   const copy = dict.home.social;
 
   return (

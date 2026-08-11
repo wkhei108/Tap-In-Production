@@ -1,4 +1,4 @@
-import { capabilityGroups } from '@/content/services';
+import { resolveServiceContent } from '@/lib/copy';
 import type { Locale } from '@/lib/i18n';
 
 /**
@@ -8,7 +8,9 @@ import type { Locale } from '@/lib/i18n';
  * this is the content prospective clients scan for, so it is never hidden
  * behind an interaction.
  */
-export default function CapabilityGrid({ locale }: { locale: Locale }) {
+export default async function CapabilityGrid({ locale }: { locale: Locale }) {
+  const { capabilityGroups } = await resolveServiceContent();
+
   return (
     <ul className="grid gap-px overflow-hidden rounded-xs border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
       {capabilityGroups.map((group) => (
