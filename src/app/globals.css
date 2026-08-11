@@ -21,6 +21,11 @@
   /* --- Accents -------------------------------------------------------- */
   --color-lime: #d7ff20; /* TAP IN. signature — 17:1 on ink */
 
+  /* Attention state: unsaved warnings, destructive confirmations, form
+     errors. Distinct from lime, which means "this is the action to take" —
+     amber means "read this before you act". 9.6:1 on ink. */
+  --color-amber: #f2b84c;
+
   /* BUILD-A-CLUB — blue. `club` is the brand blue (large text, fills,
      borders); `club-ink` is the AA-safe tint for body-size text on dark. */
   --color-club: #2368d8;

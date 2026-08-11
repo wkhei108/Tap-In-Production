@@ -28,8 +28,8 @@ export default function LoginForm({ configured }: { configured: boolean }) {
       return;
     }
 
-    // The cookie is set; re-render the server component that gates /admin/media.
-    router.replace('/admin/media');
+    // The cookie is set; re-render the server component that gates /admin.
+    router.replace('/admin');
     router.refresh();
   }
 

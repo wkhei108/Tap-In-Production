@@ -50,11 +50,12 @@ export default function proxy(request: NextRequest) {
 
 export const config = {
   /**
-   * Skip Next internals, the API, the single-language admin tool, and the
-   * metadata routes that must stay at the origin root (sitemap.xml,
-   * robots.txt, favicons, manifest, OG images).
+   * Skip Next internals, the API, the single-language admin tool (bare
+   * `/admin` as well as everything under it), and the metadata routes that
+   * must stay at the origin root (sitemap.xml, robots.txt, favicons,
+   * manifest, OG images).
    */
   matcher: [
-    '/((?!_next/static|_next/image|api/|admin/|favicon\\.ico|icon|apple-icon|opengraph-image|twitter-image|manifest\\.webmanifest|sitemap\\.xml|robots\\.txt|media/|brand/).*)',
+    '/((?!_next/static|_next/image|api/|admin|favicon\\.ico|icon|apple-icon|opengraph-image|twitter-image|manifest\\.webmanifest|sitemap\\.xml|robots\\.txt|media/|brand/).*)',
   ],
 };

@@ -1,7 +1,10 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  availableSlug,
+  mergeCategories,
   resolveFeaturedProjects,
+  resolveHero,
   resolveProjectBySlug,
   resolveProjects,
 } from '@/lib/campaigns';
@@ -11,7 +14,7 @@ import {
   slugify,
   type SiteIndex,
 } from '@/lib/campaign-schema';
-import { projects } from '@/content/projects';
+import { projectCategories, projects } from '@/content/projects';
 
 const first = projects[0]!;
 const second = projects[1]!;
@@ -188,8 +191,18 @@ describe('newCampaignSchema', () => {
     expect(newCampaignSchema.safeParse({ ...valid, filters: [] }).success).toBe(false);
   });
 
-  it('rejects a category the site cannot label', () => {
-    expect(newCampaignSchema.safeParse({ ...valid, category: 'invented' }).success).toBe(false);
+  it('requires a category to be chosen', () => {
+    expect(newCampaignSchema.safeParse({ ...valid, category: '  ' }).success).toBe(false);
+  });
+
+  it('accepts any category key at the schema level', () => {
+    /* Deliberate: categories can be added at runtime, so a module-level enum
+       frozen at import would reject a perfectly valid new one. The route
+       checks the value against the merged code+admin set instead — see the
+       `in categories` guard in src/app/api/campaigns/route.ts. */
+    expect(newCampaignSchema.safeParse({ ...valid, category: 'youth-development' }).success).toBe(
+      true,
+    );
   });
 });
 
@@ -204,5 +217,114 @@ describe('slugify', () => {
 
   it('never exceeds a sensible length', () => {
     expect(slugify('a'.repeat(200)).length).toBeLessThanOrEqual(60);
+  });
+});
+
+describe('mergeCategories', () => {
+  it('returns the code-defined categories when none were added', () => {
+    expect(mergeCategories(index({}))).toEqual(projectCategories);
+  });
+
+  it('adds a category created in the tool', () => {
+    const merged = mergeCategories({
+      version: 1,
+      campaigns: {},
+      categories: { 'youth-development': { en: 'Youth Development', 'zh-hk': '青訓' } },
+    });
+
+    expect(merged['youth-development']).toEqual({
+      en: 'Youth Development',
+      'zh-hk': '青訓',
+    });
+    // The code-defined ones survive alongside it.
+    expect(Object.keys(merged).length).toBe(Object.keys(projectCategories).length + 1);
+  });
+
+  it('lets an admin category override a code one of the same key', () => {
+    const key = Object.keys(projectCategories)[0]!;
+    const merged = mergeCategories({
+      version: 1,
+      campaigns: {},
+      categories: { [key]: { en: 'Renamed', 'zh-hk': '改名' } },
+    });
+    expect(merged[key]?.en).toBe('Renamed');
+  });
+});
+
+describe('availableSlug', () => {
+  it('uses the desired slug when it is free', () => {
+    expect(availableSlug('cup-final', new Set())).toBe('cup-final');
+  });
+
+  it('suffixes rather than overwriting an existing campaign', () => {
+    expect(availableSlug('cup-final', new Set(['cup-final']))).toBe('cup-final-2');
+    expect(availableSlug('cup-final', new Set(['cup-final', 'cup-final-2']))).toBe(
+      'cup-final-3',
+    );
+  });
+
+  it('never collides with a code-defined slug', () => {
+    const taken = new Set(projects.map((p) => p.slug));
+    const slug = availableSlug(first.slug, taken);
+    expect(taken.has(slug)).toBe(false);
+  });
+});
+
+describe('a campaign using a runtime-added category', () => {
+  it('still parses out of the index', () => {
+    // The stored category is a plain string precisely so this works — an enum
+    // frozen at import time would reject it and blank the whole index.
+    const parsed = siteIndexSchema.safeParse({
+      version: 1,
+      campaigns: { 'new-one': { origin: 'admin', title: 'New', category: 'youth-development' } },
+      categories: { 'youth-development': { en: 'Youth Development', 'zh-hk': '青訓' } },
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('resolves onto the project with that category intact', async () => {
+    const resolved = await resolveProjects({
+      version: 1,
+      campaigns: {
+        'new-one': {
+          origin: 'admin',
+          title: 'New',
+          titleZh: '新',
+          category: 'youth-development',
+          filters: ['club'],
+        },
+      },
+      categories: { 'youth-development': { en: 'Youth Development', 'zh-hk': '青訓' } },
+    });
+    expect(resolved.find((p) => p.slug === 'new-one')?.category).toBe('youth-development');
+  });
+});
+
+describe('resolveHero', () => {
+  it('is null when nothing has been set', async () => {
+    expect(await resolveHero(index({}))).toBeNull();
+  });
+
+  it('returns the stored hero', async () => {
+    const hero = await resolveHero({
+      version: 1,
+      campaigns: {},
+      hero: {
+        posterUrl: 'https://store.public.blob.vercel-storage.com/media/hero/poster.webp',
+        posterAltText: 'Floodlit pitch before kickoff.',
+        posterAltTextZh: '開賽前的射燈球場。',
+      },
+    });
+    expect(hero?.posterAltText).toBe('Floodlit pitch before kickoff.');
+    expect(hero?.videoUrl).toBeUndefined();
+  });
+
+  it('rejects a hero with no poster', () => {
+    const parsed = siteIndexSchema.safeParse({
+      version: 1,
+      campaigns: {},
+      hero: { posterAltText: 'x', posterAltTextZh: 'y' },
+    });
+    expect(parsed.success).toBe(false);
   });
 });

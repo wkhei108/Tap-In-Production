@@ -26,8 +26,20 @@ export async function normalisePhoto(
   input: Buffer,
   aspect: MediaAspect,
 ): Promise<ProcessedPhoto> {
-  const target = aspectTargets[aspect];
+  return normaliseImage(input, aspectTargets[aspect]);
+}
 
+/**
+ * `docs/asset-guide.md`: hero poster 2400 × 1350, 16:9. One shape only —
+ * unlike the gallery, the hero has no crop picker.
+ */
+export const heroPosterTarget = { width: 2400, height: 1350 } as const;
+
+/** The shared pipeline. `normalisePhoto` and the hero both land here. */
+export async function normaliseImage(
+  input: Buffer,
+  target: { width: number; height: number },
+): Promise<ProcessedPhoto> {
   /*
    * `metadata()` reads the header only — no decode — and reports the stored
    * dimensions, so a photo shot on a rotated sensor comes back the wrong way

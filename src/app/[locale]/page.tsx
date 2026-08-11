@@ -18,7 +18,7 @@ import Reveal from '@/components/ui/Reveal';
 import FinalCTA from '@/components/sections/FinalCTA';
 
 import { getDictionary } from '@/content/dictionaries';
-import { resolveFeaturedProjects } from '@/lib/campaigns';
+import { resolveFeaturedProjects, resolveHero } from '@/lib/campaigns';
 import { isLocale, pathFor, type Locale } from '@/lib/i18n';
 import { buildMetadata } from '@/lib/seo';
 
@@ -56,18 +56,23 @@ export default async function HomePage({
   const locale: Locale = raw;
   const dict = getDictionary(locale);
   const featured = await resolveFeaturedProjects(4);
+  const hero = await resolveHero();
 
   return (
     <>
       {/* ---------------------------------------------------------------- 1. Hero */}
       <section className="relative flex min-h-[92svh] flex-col justify-end overflow-hidden pt-28 md:min-h-svh">
+        {/* Set in /admin. With no hero saved these are all undefined and the
+            branded placeholder carries the section, exactly as before. */}
         <HeroShowreel
-          posterAlt={dict.home.hero.mediaLabel}
+          posterSrc={hero?.posterUrl}
+          videoSrc={hero?.videoUrl}
+          posterAlt={
+            (locale === 'zh-hk' ? hero?.posterAltTextZh : hero?.posterAltText) ??
+            dict.home.hero.mediaLabel
+          }
           mediaLabel={dict.home.hero.mediaLabel}
           placeholderLabel={dict.common.mediaPending}
-          // Drop the supplied files in and set these two props:
-          // videoSrc="/media/hero/showreel.mp4"
-          // posterSrc="/media/hero/poster.webp"
         />
 
         <div className="shell pb-10 md:pb-16">

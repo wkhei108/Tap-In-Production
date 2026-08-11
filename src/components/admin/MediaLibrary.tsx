@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, GripVertical, Pin, PinOff, Star, Upload, X } from 'lucide-react';
 
@@ -63,7 +64,7 @@ export default function MediaLibrary({
   initialCover,
   storageConfigured,
 }: Props) {
-  const [slug, setSlug] = useState(initialSlug);
+  const slug = initialSlug;
   const [items, setItems] = useState<ManagedPhoto[]>(pinnedFirst(initialItems));
   const [cover, setCover] = useState<CampaignCover | null>(initialCover);
   const [staged, setStaged] = useState<Staged[]>([]);
@@ -101,15 +102,6 @@ export default function MediaLibrary({
 
     const coverResponse = await fetch(`/api/media/cover?slug=${encodeURIComponent(nextSlug)}`);
     if (coverResponse.ok) setCover((await coverResponse.json()).cover);
-  }
-
-  function switchProject(nextSlug: string) {
-    clearStaged();
-    setCover(null);
-    setSlug(nextSlug);
-    setEditingId(null);
-    setConfirmingId(null);
-    void load(nextSlug);
   }
 
   async function publishStaged() {
@@ -428,18 +420,19 @@ export default function MediaLibrary({
             const active = entry.slug === slug;
             return (
               <li key={entry.slug}>
-                <button
-                  type="button"
-                  onClick={() => switchProject(entry.slug)}
+                {/* A link, not in-page state: the campaign is in the URL, so a
+                    library view can be bookmarked and shared. */}
+                <Link
+                  href={`/admin/media/${entry.slug}`}
                   aria-current={active ? 'page' : undefined}
-                  className={`w-full rounded-xs px-2.5 py-2 text-left text-sm transition-colors ${
+                  className={`block rounded-xs px-2.5 py-2 text-sm transition-colors ${
                     active
                       ? 'bg-surface-2 font-medium text-bone'
                       : 'text-mute hover:bg-surface hover:text-bone'
                   }`}
                 >
                   {entry.title}
-                </button>
+                </Link>
               </li>
             );
           })}
