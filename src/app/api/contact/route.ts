@@ -3,41 +3,13 @@ import { createContactSchema, toFieldErrors } from '@/lib/contact-schema';
 import { deliverEnquiry } from '@/lib/mailer';
 import { getDictionary } from '@/content/dictionaries';
 import { isLocale, defaultLocale, type Locale } from '@/lib/i18n';
+import { clientKey, createRateLimiter } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 /** Never cached — this route only ever handles POSTs. */
 export const dynamic = 'force-dynamic';
 
-/**
- * Very small in-memory rate limit.
- *
- * Enough to blunt casual form spam on a single instance. It is intentionally
- * not a distributed limiter — if TAP IN. ever needs that, put it at the edge
- * or in front of the app rather than here.
- */
-const WINDOW_MS = 60_000;
-const MAX_PER_WINDOW = 5;
-const hits = new Map<string, { count: number; resetAt: number }>();
-
-function rateLimited(key: string): boolean {
-  const now = Date.now();
-  const entry = hits.get(key);
-
-  if (!entry || now > entry.resetAt) {
-    hits.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-
-  entry.count += 1;
-  if (entry.count > MAX_PER_WINDOW) return true;
-
-  // Opportunistic cleanup so the map cannot grow without bound.
-  if (hits.size > 500) {
-    for (const [k, v] of hits) if (now > v.resetAt) hits.delete(k);
-  }
-
-  return false;
-}
+const rateLimited = createRateLimiter({ windowMs: 60_000, max: 5 });
 
 export async function POST(request: Request) {
   let payload: unknown;
@@ -79,12 +51,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, delivered: false, spam: true });
   }
 
-  const ip =
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    request.headers.get('x-real-ip') ??
-    'unknown';
-
-  if (rateLimited(ip)) {
+  if (rateLimited(clientKey(request))) {
     return NextResponse.json(
       { ok: false, error: 'rate-limited', message: dict.contact.validation.rateLimited },
       { status: 429 },

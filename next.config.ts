@@ -4,8 +4,16 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   images: {
-    // All imagery is served from /public. Add remotePatterns here only if the
-    // client later moves media to a CDN or headless CMS.
+    // Built-in imagery ships from /public. Photos added through /admin/media
+    // live in the project's Vercel Blob store instead, under the same
+    // media/projects/<slug>/ layout.
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.public.blob.vercel-storage.com',
+        pathname: '/media/projects/**',
+      },
+    ],
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [360, 390, 640, 768, 1024, 1280, 1440, 1920, 2400],
     imageSizes: [96, 160, 240, 320, 480],
