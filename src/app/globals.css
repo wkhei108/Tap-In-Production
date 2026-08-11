@@ -123,7 +123,11 @@
   }
 
   body {
-    background-color: var(--color-ink);
+    /* No background here on purpose. `html` already paints the ink ground, and
+       a background on `body` too would paint an opaque box in the normal flow
+       layer — on top of every `-z-10` decorative layer on the site (the hero
+       poster, PageHero washes, PillarCard gradients, PitchLinePattern). They
+       were all invisible until this was removed. */
     color: var(--color-bone);
     font-family: var(--font-sans);
     font-synthesis-weight: none;
