@@ -13,9 +13,14 @@ import ProjectGrid from '@/components/work/ProjectGrid';
 
 import { getDictionary } from '@/content/dictionaries';
 import { gameDeliverablesBoard, gameEventJourney, gameServices } from '@/content/services';
-import { filterProjects, getAllProjects } from '@/content/projects';
+import { filterProjects } from '@/content/projects';
+import { resolveProjects } from '@/lib/campaigns';
 import { isLocale, pathFor, type Locale } from '@/lib/i18n';
 import { buildMetadata } from '@/lib/seo';
+
+/** Backstop for admin edits; writes also revalidate this path immediately. */
+export const revalidate = 900;
+
 
 export async function generateMetadata({
   params,
@@ -45,7 +50,7 @@ export default async function BuildAGamePage({
 
   const locale: Locale = raw;
   const dict = getDictionary(locale);
-  const gameProjects = filterProjects(getAllProjects(), 'game').slice(0, 4);
+  const gameProjects = filterProjects(await resolveProjects(), 'game').slice(0, 4);
 
   return (
     <>

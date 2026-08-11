@@ -75,9 +75,12 @@ export type Project = {
   coverAspect: MediaAspect;
   altText: string;
   altTextZh: string;
-  brief: Localised;
-  challenge: Localised;
-  approach: Localised;
+  /* The long-form case-study prose. Optional because campaigns created in the
+     admin tool carry a short record — the template skips these sections rather
+     than printing empty headings. */
+  brief?: Localised;
+  challenge?: Localised;
+  approach?: Localised;
   deliverables: Localised<string[]>;
   /** Only ever populated with results TAP IN. has verified. Omitted here. */
   outcomes?: Localised<string[]>;

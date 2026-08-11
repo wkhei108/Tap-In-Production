@@ -18,9 +18,13 @@ import Reveal from '@/components/ui/Reveal';
 import FinalCTA from '@/components/sections/FinalCTA';
 
 import { getDictionary } from '@/content/dictionaries';
-import { getFeaturedProjects } from '@/content/projects';
+import { resolveFeaturedProjects } from '@/lib/campaigns';
 import { isLocale, pathFor, type Locale } from '@/lib/i18n';
 import { buildMetadata } from '@/lib/seo';
+
+/** Backstop for admin edits; writes also revalidate this path immediately. */
+export const revalidate = 900;
+
 
 export async function generateMetadata({
   params,
@@ -51,7 +55,7 @@ export default async function HomePage({
 
   const locale: Locale = raw;
   const dict = getDictionary(locale);
-  const featured = getFeaturedProjects(4);
+  const featured = await resolveFeaturedProjects(4);
 
   return (
     <>

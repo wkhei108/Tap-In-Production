@@ -8,9 +8,13 @@ import WorkExplorer from '@/components/work/WorkExplorer';
 import ProjectGrid from '@/components/work/ProjectGrid';
 
 import { getDictionary } from '@/content/dictionaries';
-import { getAllProjects, type WorkFilter } from '@/content/projects';
+import { type WorkFilter } from '@/content/projects';
+import { resolveProjects } from '@/lib/campaigns';
 import { isLocale, pathFor, type Locale } from '@/lib/i18n';
 import { buildMetadata } from '@/lib/seo';
+
+/** Backstop for admin edits; writes also revalidate this path immediately. */
+export const revalidate = 900;
 
 export async function generateMetadata({
   params,
@@ -40,7 +44,7 @@ export default async function WorkPage({
 
   const locale: Locale = raw;
   const dict = getDictionary(locale);
-  const projects = getAllProjects();
+  const projects = await resolveProjects();
 
   const filterLabels: Record<WorkFilter, string> = {
     all: dict.work.filters.all,

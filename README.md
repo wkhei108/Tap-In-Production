@@ -185,6 +185,23 @@ source of truth for everything that shipped with the build. What it does own is
 the running order around those entries: uploads can be reordered, and a photo
 can be **pinned** to lead the gallery ahead of the built-in slots.
 
+### Cover photos
+
+A campaign's cover is the image that represents it everywhere — its own page, the
+Work index, and every grid that lists it. Set one in `/admin/media` either by
+starring a photo already in the gallery, or by uploading a cover that never
+appears in the gallery. Clearing it falls back to whatever `projects.ts` says.
+
+Because covers render on five different page types, reading each campaign's
+manifest per page would mean a dozen storage round trips. Instead a single
+`media/site-index.json` carries the overlay, and `resolveProjects()` in
+`src/lib/campaigns.ts` applies it. That function returns plain `Project[]`, so
+`ProjectCard`, `ProjectGrid` and `WorkExplorer` needed no changes at all. With
+storage unconfigured it returns the code-defined list unchanged.
+
+Those pages carry `revalidate = 900` as a backstop; writes call `revalidatePath`
+so an edit shows up immediately rather than waiting it out.
+
 The gallery is a 12-column grid and each crop claims a different share of it
 (landscape 8, portrait 4, square 6), so the order decides whether a row fills
 cleanly. `/admin/media` renders the resulting rows — including the built-in
