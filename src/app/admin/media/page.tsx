@@ -10,6 +10,10 @@ export default function AdminMediaPage() {
   const projects = getAllProjects().map((project) => ({
     slug: project.slug,
     title: project.title,
+    /* The crops already declared in src/content/projects.ts. The running-order
+       preview needs them to show the real layout — managed photos sit either
+       side of these, not in a list of their own. */
+    builtIn: project.gallery.map((item) => item.aspect),
   }));
 
   return (

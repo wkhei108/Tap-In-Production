@@ -7,6 +7,7 @@ import VideoPlayer from './VideoPlayer';
 import type { LightboxLabels } from './Lightbox';
 import type { MediaItem } from '@/content/projects';
 import type { Locale } from '@/lib/i18n';
+import { gallerySpanClass } from '@/lib/gallery-layout';
 
 // The viewer is only needed once someone opens an item.
 const Lightbox = dynamic(() => import('./Lightbox'), { ssr: false });
@@ -24,12 +25,6 @@ type Props = {
     noSupport: string;
     transcript: string;
   };
-};
-
-const span: Record<MediaItem['aspect'], string> = {
-  landscape: 'md:col-span-8',
-  portrait: 'md:col-span-4',
-  square: 'md:col-span-6',
 };
 
 export default function ProjectGallery({ items, locale, slug, labels }: Props) {
@@ -52,7 +47,7 @@ export default function ProjectGallery({ items, locale, slug, labels }: Props) {
         className="grid grid-cols-1 gap-4 md:grid-cols-12 md:gap-6"
       >
         {items.map((item, index) => (
-          <li key={`${slug}-${index}`} className={span[item.aspect]}>
+          <li key={`${slug}-${index}`} className={gallerySpanClass[item.aspect]}>
             {item.type === 'video' && item.src ? (
               <VideoPlayer
                 src={item.src}

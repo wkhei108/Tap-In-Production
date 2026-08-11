@@ -28,10 +28,16 @@ export async function normalisePhoto(
 ): Promise<ProcessedPhoto> {
   const target = aspectTargets[aspect];
 
-  // Orientation has to be baked in before measuring, or a portrait photo shot
-  // on a rotated sensor reports its dimensions the wrong way round.
-  const oriented = await sharp(input).rotate().toBuffer();
-  const source = await sharp(oriented).metadata();
+  /*
+   * `metadata()` reads the header only — no decode — and reports the stored
+   * dimensions, so a photo shot on a rotated sensor comes back the wrong way
+   * round. EXIF orientations 5-8 are the quarter turns, so swap for those to
+   * get the size the viewer will actually see.
+   */
+  const source = await sharp(input).metadata();
+  const quarterTurned = (source.orientation ?? 1) >= 5;
+  const sourceWidth = quarterTurned ? source.height : source.width;
+  const sourceHeight = quarterTurned ? source.width : source.height;
 
   /*
    * Scale the target down to fit inside the source rather than passing
@@ -40,9 +46,10 @@ export async function normalisePhoto(
    * too and leaves the photo at whatever ratio the camera produced. Shrinking
    * the target keeps the ratio exact and still never upscales.
    */
-  const scale = Math.min(1, source.width / target.width, source.height / target.height);
+  const scale = Math.min(1, sourceWidth / target.width, sourceHeight / target.height);
 
-  const { data, info } = await sharp(oriented)
+  const { data, info } = await sharp(input)
+    .rotate()
     .resize({
       width: Math.round(target.width * scale),
       height: Math.round(target.height * scale),
