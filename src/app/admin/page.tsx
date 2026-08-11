@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 
+import AdminChrome from '@/components/admin/AdminChrome';
 import CampaignsOverview from '@/components/admin/CampaignsOverview';
-import SignOutButton from '@/components/admin/SignOutButton';
 import { sessionCookieName, verifySessionValue } from '@/lib/admin-session';
 import { mergeCategories, readSiteIndex, resolveProjects } from '@/lib/campaigns';
 import { isPhotoStorageConfigured } from '@/lib/photo-storage';
@@ -42,17 +42,11 @@ export default async function AdminHomePage() {
 
   return (
     <div className="min-h-svh">
-      <header className="sticky top-0 z-20 border-b border-line bg-ink/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-3.5">
-          <div className="flex items-baseline gap-3">
-            <span className="font-mono text-xs uppercase tracking-[0.16em] text-lime">
-              TAP IN.
-            </span>
-            <h1 className="font-mono text-sm text-bone">Campaigns</h1>
-          </div>
-          <SignOutButton />
-        </div>
-      </header>
+      <AdminChrome
+        title="Campaigns"
+        current="/admin"
+        blurb="Case studies, their covers and their photo galleries."
+      />
 
       <CampaignsOverview
         initialCampaigns={campaigns}

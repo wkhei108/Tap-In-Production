@@ -18,6 +18,8 @@ import Reveal from '@/components/ui/Reveal';
 import FinalCTA from '@/components/sections/FinalCTA';
 
 import { resolveDictionary } from '@/lib/copy';
+import { resolvePageMedia } from '@/lib/site-content';
+import { slotFrameProps } from '@/lib/media-slots';
 import { resolveFeaturedProjects, resolveHero } from '@/lib/campaigns';
 import { isLocale, pathFor, type Locale } from '@/lib/i18n';
 import { buildMetadata } from '@/lib/seo';
@@ -55,6 +57,7 @@ export default async function HomePage({
 
   const locale: Locale = raw;
   const dict = await resolveDictionary(locale);
+  const pageMedia = await resolvePageMedia();
   const featured = await resolveFeaturedProjects(4);
   const hero = await resolveHero();
 
@@ -144,22 +147,24 @@ export default async function HomePage({
           <div className="relative lg:col-span-7">
             <Reveal>
               <MediaFrame
-                aspect="landscape"
-                alt={dict.home.intro.captionPrimary}
+                {...slotFrameProps(pageMedia['home.intro.primary'], locale, {
+                  alt: dict.home.intro.captionPrimary,
+                  aspect: 'landscape',
+                  note: dict.home.intro.captionPrimary,
+                })}
                 sizes="(min-width: 1024px) 55vw, 100vw"
-                note={dict.home.intro.captionPrimary}
                 placeholderLabel={dict.common.mediaPending}
-                expectedPath="/media/home/intro-primary.webp"
               />
             </Reveal>
             <Reveal delay={0.12} className="ml-auto -mt-16 w-1/2 max-w-[280px] md:-mt-24">
               <MediaFrame
-                aspect="portrait"
-                alt={dict.home.intro.captionSecondary}
+                {...slotFrameProps(pageMedia['home.intro.secondary'], locale, {
+                  alt: dict.home.intro.captionSecondary,
+                  aspect: 'portrait',
+                  note: dict.home.intro.captionSecondary,
+                })}
                 sizes="(min-width: 1024px) 20vw, 45vw"
-                note={dict.home.intro.captionSecondary}
                 placeholderLabel={dict.common.mediaPending}
-                expectedPath="/media/home/intro-secondary.webp"
                 className="shadow-[0_24px_60px_-24px_rgba(0,0,0,0.9)]"
               />
             </Reveal>

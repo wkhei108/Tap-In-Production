@@ -11,8 +11,8 @@ import Reveal from '@/components/ui/Reveal';
 import PrimaryCTA from '@/components/ui/PrimaryCTA';
 import ProjectGrid from '@/components/work/ProjectGrid';
 
-import { resolveDictionary } from '@/lib/copy';
-import { resolveServiceContent } from '@/lib/copy';
+import { resolveDictionary, resolveServiceContent } from '@/lib/copy';
+import { resolvePageMedia } from '@/lib/site-content';
 import { filterProjects } from '@/content/projects';
 import { resolveProjects } from '@/lib/campaigns';
 import { isLocale, pathFor, type Locale } from '@/lib/i18n';
@@ -50,6 +50,7 @@ export default async function BuildAClubPage({
 
   const locale: Locale = raw;
   const dict = await resolveDictionary(locale);
+  const pageMedia = await resolvePageMedia();
   const clubProjects = filterProjects(await resolveProjects(), 'club').slice(0, 4);
   const { clubServices, clubSeasonWorkflow, clubMatchweekCalendar } =
     await resolveServiceContent();
@@ -117,7 +118,7 @@ export default async function BuildAClubPage({
             locale={locale}
             tone="club"
             mediaPendingLabel={dict.common.mediaPending}
-            mediaFolder="build-a-club"
+            pageMedia={pageMedia}
           />
         </div>
       </section>

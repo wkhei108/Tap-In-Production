@@ -1,5 +1,7 @@
 import { clubServices, gameServices, type ServiceDetail } from '@/content/services';
 import type { MediaAspect } from '@/content/projects';
+import type { MediaSlotRecord } from './campaign-schema';
+import type { Locale } from './i18n';
 
 /* ==========================================================================
    Page media slots.
@@ -92,4 +94,28 @@ export function mediaSlotFor(key: string): MediaSlotDefinition | undefined {
 
 export function isMediaSlot(key: string): boolean {
   return slotByKey.has(key);
+}
+
+/**
+ * Turn a stored slot into `MediaFrame` props.
+ *
+ * With nothing uploaded the frame keeps rendering its branded placeholder at
+ * the ratio the layout reserved, which is exactly what it did before any of
+ * this was editable — so a half-filled site never looks broken.
+ */
+export function slotFrameProps(
+  record: MediaSlotRecord | undefined,
+  locale: Locale,
+  fallback: { alt: string; aspect: MediaAspect; note?: string },
+): { src?: string; alt: string; aspect: MediaAspect; note?: string } {
+  if (!record) {
+    return { alt: fallback.alt, aspect: fallback.aspect, note: fallback.note };
+  }
+
+  return {
+    src: record.url,
+    alt: (locale === 'zh-hk' ? record.altTextZh : record.altText) || fallback.alt,
+    aspect: record.aspect,
+    note: record.caption ? record.caption[locale] : fallback.note,
+  };
 }

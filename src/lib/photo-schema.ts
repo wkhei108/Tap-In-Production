@@ -35,6 +35,24 @@ export const acceptedUploadTypes = [
 /** Generous enough for an unedited camera JPEG, small enough to reject a RAW. */
 export const maxUploadBytes = 20 * 1024 * 1024;
 
+/**
+ * Brand artwork limits.
+ *
+ * Kept here beside the photo limits rather than next to the upload handler,
+ * because the admin form needs them too and the handler pulls in sharp —
+ * which must never reach the browser bundle.
+ */
+export const maxBrandBytes = 5 * 1024 * 1024;
+
+/** Vectors stay vectors: rasterising a logo would be a downgrade. */
+export const acceptedBrandTypes = [
+  'image/svg+xml',
+  'image/png',
+  'image/webp',
+  'image/jpeg',
+  'image/avif',
+] as const;
+
 /** `docs/asset-guide.md`: keep alt text under about 125 characters. */
 const maxAltLength = 125;
 const maxCaptionLength = 60;

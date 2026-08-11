@@ -11,8 +11,8 @@ import Reveal from '@/components/ui/Reveal';
 import PrimaryCTA from '@/components/ui/PrimaryCTA';
 import ProjectGrid from '@/components/work/ProjectGrid';
 
-import { resolveDictionary } from '@/lib/copy';
-import { resolveServiceContent } from '@/lib/copy';
+import { resolveDictionary, resolveServiceContent } from '@/lib/copy';
+import { resolvePageMedia } from '@/lib/site-content';
 import { filterProjects } from '@/content/projects';
 import { resolveProjects } from '@/lib/campaigns';
 import { isLocale, pathFor, type Locale } from '@/lib/i18n';
@@ -50,6 +50,7 @@ export default async function BuildAGamePage({
 
   const locale: Locale = raw;
   const dict = await resolveDictionary(locale);
+  const pageMedia = await resolvePageMedia();
   const gameProjects = filterProjects(await resolveProjects(), 'game').slice(0, 4);
   const { gameServices, gameEventJourney, gameDeliverablesBoard } = await resolveServiceContent();
 
@@ -114,7 +115,7 @@ export default async function BuildAGamePage({
             locale={locale}
             tone="game"
             mediaPendingLabel={dict.common.mediaPending}
-            mediaFolder="build-a-game"
+            pageMedia={pageMedia}
           />
         </div>
       </section>
