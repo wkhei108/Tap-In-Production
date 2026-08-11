@@ -75,6 +75,14 @@ describe('photoManifestSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('reads a manifest written before pinning existed', () => {
+    // `photo` deliberately carries no `pinned` key — manifests already in the
+    // Blob store predate the field and must keep working.
+    const result = photoManifestSchema.safeParse({ version: 1, items: [photo] });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.items[0]?.pinned).toBe(false);
+  });
+
   it('rejects an unknown format version', () => {
     expect(photoManifestSchema.safeParse({ version: 2, items: [] }).success).toBe(false);
   });
@@ -98,6 +106,7 @@ describe('toMediaItem', () => {
       altTextZh: '看台上的球迷。',
       caption: { en: 'Full time', 'zh-hk': '完場' },
       uploadedAt: '2026-08-10T00:00:00.000Z',
+      pinned: false,
     });
 
     expect(item).toEqual({

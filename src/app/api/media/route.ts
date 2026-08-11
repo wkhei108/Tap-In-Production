@@ -7,6 +7,7 @@ import { normalisePhoto } from '@/lib/photo-processing';
 import {
   acceptedUploadTypes,
   maxUploadBytes,
+  photoOrderSchema,
   photoUploadSchema,
   toPhotoFieldErrors,
 } from '@/lib/photo-schema';
@@ -14,6 +15,7 @@ import {
   isPhotoStorageConfigured,
   readManifest,
   removePhoto,
+  reorderPhotos,
   savePhoto,
 } from '@/lib/photo-storage';
 import { clientKey, createRateLimiter } from '@/lib/rate-limit';
@@ -176,6 +178,9 @@ export async function POST(request: Request) {
       altText: values.altText,
       altTextZh: values.altTextZh,
       caption,
+      // New photos join the end of the running order; pinning is a later,
+      // deliberate choice made in the admin tool.
+      pinned: false,
     },
     processed.body,
   );
@@ -193,6 +198,39 @@ export async function POST(request: Request) {
     height: processed.height,
     bytes: processed.bytes,
   });
+}
+
+/** Save a new running order and pin flags for a project. */
+export async function PATCH(request: Request) {
+  const denied = guard(request);
+  if (denied) return denied;
+
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: 'invalid-json' }, { status: 400 });
+  }
+
+  const parsed = photoOrderSchema.safeParse(payload);
+  if (!parsed.success) {
+    return NextResponse.json({ ok: false, error: 'validation' }, { status: 400 });
+  }
+
+  const { slug, items } = parsed.data;
+
+  if (!isKnownSlug(slug)) {
+    return NextResponse.json({ ok: false, error: 'unknown-project' }, { status: 400 });
+  }
+
+  const result = await reorderPhotos(slug, items);
+  if (!result.ok) {
+    return NextResponse.json({ ok: false, error: result.reason }, { status: 502 });
+  }
+
+  refreshCaseStudy(slug);
+
+  return NextResponse.json({ ok: true, items: result.data.items });
 }
 
 export async function DELETE(request: Request) {

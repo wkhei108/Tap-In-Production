@@ -159,6 +159,36 @@ export async function savePhoto(
   }
 }
 
+/**
+ * Rewrite a project's running order and pin flags.
+ *
+ * Takes the full desired sequence. Ids the manifest no longer knows about are
+ * skipped, and photos the caller did not mention — one uploaded from another
+ * tab mid-edit, say — keep their place at the end rather than being dropped by
+ * a stale list.
+ */
+export async function reorderPhotos(
+  slug: string,
+  desired: ReadonlyArray<{ id: string; pinned: boolean }>,
+): Promise<StorageResult<PhotoManifest>> {
+  if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
+
+  const current = await readManifest(slug, { fresh: true });
+  const remaining = new Map(current.items.map((item) => [item.id, item]));
+  const ordered: ManagedPhoto[] = [];
+
+  for (const { id, pinned } of desired) {
+    const item = remaining.get(id);
+    if (!item) continue;
+    remaining.delete(id);
+    ordered.push({ ...item, pinned });
+  }
+
+  ordered.push(...remaining.values());
+
+  return writeManifest(slug, { version: 1, items: ordered });
+}
+
 /** Remove a photo from the manifest, then from storage. */
 export async function removePhoto(
   slug: string,

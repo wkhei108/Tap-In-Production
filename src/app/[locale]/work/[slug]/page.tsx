@@ -76,11 +76,16 @@ export default async function ProjectPage({
   const dict = getDictionary(locale);
   const related = getRelatedProjects(slug, 3);
 
-  // Photos uploaded through the admin tool extend the gallery declared in
-  // src/content/projects.ts; with no Blob store connected this is empty and
-  // the page renders exactly as it always has.
+  /* Photos uploaded through the admin tool surround the gallery declared in
+     src/content/projects.ts: pinned ones lead, the rest follow. With no Blob
+     store connected both lists are empty and the page renders exactly as it
+     always has. */
   const managed = await readManifest(project.slug);
-  const gallery = [...project.gallery, ...managed.items.map(toMediaItem)];
+  const gallery = [
+    ...managed.items.filter((photo) => photo.pinned).map(toMediaItem),
+    ...project.gallery,
+    ...managed.items.filter((photo) => !photo.pinned).map(toMediaItem),
+  ];
 
   const breadcrumbs = breadcrumbJsonLd([
     { name: dict.nav.home, path: pathFor(locale, 'home') },

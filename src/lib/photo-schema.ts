@@ -120,6 +120,12 @@ export const managedPhotoSchema = z.object({
   altTextZh: z.string(),
   caption: z.object({ en: z.string(), 'zh-hk': z.string() }).optional(),
   uploadedAt: z.string(),
+  /**
+   * Pinned photos lead the gallery, ahead of the entries declared in
+   * `src/content/projects.ts`. Defaulted rather than required so manifests
+   * written before pinning existed still parse.
+   */
+  pinned: z.boolean().default(false),
 });
 
 export type ManagedPhoto = z.infer<typeof managedPhotoSchema>;
@@ -135,6 +141,22 @@ export const photoManifestSchema = z.object({
 });
 
 export type PhotoManifest = z.infer<typeof photoManifestSchema>;
+
+/**
+ * A complete running order, sent whenever the admin tool saves.
+ *
+ * The whole list travels rather than a "move this one" instruction: the tool
+ * already knows the order it is showing, and sending it wholesale means a
+ * half-applied sequence is not a state the server can end up in.
+ */
+export const photoOrderSchema = z.object({
+  slug: z.string().trim().min(1),
+  items: z
+    .array(z.object({ id: z.string().min(1), pinned: z.boolean() }))
+    .max(200),
+});
+
+export type PhotoOrderValues = z.infer<typeof photoOrderSchema>;
 
 /** Adapt a stored photo to the `MediaItem` the gallery components already take. */
 export function toMediaItem(photo: ManagedPhoto): MediaItem {

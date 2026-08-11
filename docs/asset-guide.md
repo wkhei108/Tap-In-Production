@@ -10,10 +10,10 @@ two steps: **drop the file in the right folder, set the path in the content
 file.**
 
 > **Case-study photos can also be added without a deploy.** Once a Vercel Blob
-> store is connected, `/admin/media` uploads straight into a project's gallery
-> and applies the sizes below for you. See README → Media. Everything else on
-> this page — covers, hero, service and social imagery — still goes through the
-> repo.
+> store is connected, `/admin/media` uploads straight into a project's gallery,
+> applies the sizes below for you, and lets you reorder or pin what you have
+> added. See README → Media. Everything else on this page — covers, hero,
+> service and social imagery — still goes through the repo.
 
 ---
 

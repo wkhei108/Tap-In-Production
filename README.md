@@ -180,9 +180,17 @@ There are two ways to put a photo on the site, and they coexist:
 | **In the repo** | `public/media/`, wired up in `src/content/projects.ts` | anyone editing code | the permanent set — covers, hero, service images |
 | **`/admin/media`** | the project's Vercel Blob store | anyone with the admin token | adding case-study photos after launch |
 
-The admin tool only ever *adds to* a project's gallery; the entries in
-`src/content/projects.ts` are untouched, so the repo stays the source of truth
-for everything that shipped with the build.
+The admin tool never edits `src/content/projects.ts`, so the repo stays the
+source of truth for everything that shipped with the build. What it does own is
+the running order around those entries: uploads can be reordered, and a photo
+can be **pinned** to lead the gallery ahead of the built-in slots.
+
+The gallery is a 12-column grid and each crop claims a different share of it
+(landscape 8, portrait 4, square 6), so the order decides whether a row fills
+cleanly. `/admin/media` renders the resulting rows — including the built-in
+slots — so a ragged gap is visible before it is published rather than after.
+Both the grid and that preview read `src/lib/gallery-layout.ts`, which is what
+stops them drifting apart.
 
 An upload is resized to the crop you pick, converted to WebP, and **stripped of
 metadata** — match photography routinely carries GPS coordinates, and blob
