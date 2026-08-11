@@ -17,28 +17,28 @@ const filterLabels = Object.fromEntries(
 const counts = Object.fromEntries(workFilters.map((f) => [f, 2])) as Record<WorkFilter, number>;
 
 describe('ProjectCard', () => {
-  it('renders the English title as a link to the case study', () => {
-    render(<ProjectCard project={project} locale="en" />);
+  it('renders the English title as a link to the case study', async () => {
+    render(await ProjectCard({ project, locale: 'en' }));
     const link = screen.getByRole('link', { name: project.title });
     expect(link).toHaveProperty('href');
     expect(link.getAttribute('href')).toBe('/en/work/club-season-content-programme');
   });
 
-  it('renders Traditional Chinese copy and a zh-hk link', () => {
-    render(<ProjectCard project={project} locale="zh-hk" />);
+  it('renders Traditional Chinese copy and a zh-hk link', async () => {
+    render(await ProjectCard({ project, locale: 'zh-hk' }));
     expect(screen.getByRole('link', { name: project.titleZh })).toBeTruthy();
     expect(screen.getByRole('link', { name: project.titleZh }).getAttribute('href')).toBe(
       '/zh-hk/work/club-season-content-programme',
     );
   });
 
-  it('labels sample entries so they cannot read as real client work', () => {
-    render(<ProjectCard project={project} locale="en" />);
+  it('labels sample entries so they cannot read as real client work', async () => {
+    render(await ProjectCard({ project, locale: 'en' }));
     expect(screen.getByText(en.common.sampleBadge)).toBeTruthy();
   });
 
-  it('omits the year when none has been confirmed', () => {
-    const { container } = render(<ProjectCard project={project} locale="en" />);
+  it('omits the year when none has been confirmed', async () => {
+    const { container } = render(await ProjectCard({ project, locale: 'en' }));
     expect(container.textContent).not.toMatch(/\b20\d{2}\b/);
   });
 });
@@ -104,8 +104,8 @@ describe('ProjectFilters', () => {
 });
 
 describe('CapabilityGrid', () => {
-  it('shows every capability without hiding any behind an interaction', () => {
-    render(<CapabilityGrid locale="en" />);
+  it('shows every capability without hiding any behind an interaction', async () => {
+    render(await CapabilityGrid({ locale: 'en' }));
     for (const heading of ['Content', 'Production', 'Brand', 'Events']) {
       expect(screen.getByRole('heading', { name: heading })).toBeTruthy();
     }
@@ -113,8 +113,8 @@ describe('CapabilityGrid', () => {
     expect(screen.getByText('Fan-zone activation')).toBeTruthy();
   });
 
-  it('renders the Traditional Chinese capability list', () => {
-    render(<CapabilityGrid locale="zh-hk" />);
+  it('renders the Traditional Chinese capability list', async () => {
+    render(await CapabilityGrid({ locale: 'zh-hk' }));
     expect(screen.getByRole('heading', { name: '製作' })).toBeTruthy();
     expect(screen.getByText('比賽攝影')).toBeTruthy();
   });

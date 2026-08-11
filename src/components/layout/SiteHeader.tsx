@@ -1,5 +1,6 @@
 import Link from 'next/link';
-import { getDictionary } from '@/content/dictionaries';
+import { resolveDictionary } from '@/lib/copy';
+import { resolveBrand, resolveSite } from '@/lib/site-content';
 import { primaryNav, routes, type RouteKey } from '@/content/site';
 import { pathFor, type Locale } from '@/lib/i18n';
 import HeaderShell from './HeaderShell';
@@ -13,8 +14,10 @@ export type NavItem = { key: RouteKey; label: string; href: string };
  * Server component: builds the localised nav model once, then hands it to the
  * small client shell that handles scroll state and the mobile menu.
  */
-export default function SiteHeader({ locale }: { locale: Locale }) {
-  const dict = getDictionary(locale);
+export default async function SiteHeader({ locale }: { locale: Locale }) {
+  const dict = await resolveDictionary(locale);
+  const site = await resolveSite();
+  const brand = await resolveBrand();
 
   const navLabels: Record<RouteKey, string> = {
     home: dict.nav.home,
@@ -40,7 +43,11 @@ export default function SiteHeader({ locale }: { locale: Locale }) {
           aria-label={dict.nav.brandHome}
           className="tap flex items-center"
         >
-          <Wordmark className="text-2xl md:text-[1.7rem]" />
+          <Wordmark
+            className="text-2xl md:text-[1.7rem]"
+            logoUrl={brand.logoUrl}
+            name={site.name}
+          />
         </Link>
 
         <nav
@@ -75,6 +82,11 @@ export default function SiteHeader({ locale }: { locale: Locale }) {
               language: dict.nav.languageLabel,
             }}
             contactHref={pathFor(locale, 'contact')}
+            contactDetails={{
+              email: site.email,
+              instagramUrl: site.instagramUrl,
+              instagramHandle: site.instagramHandle,
+            }}
           />
         </div>
       </div>

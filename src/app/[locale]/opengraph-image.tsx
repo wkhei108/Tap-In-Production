@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og';
-import { getDictionary } from '@/content/dictionaries';
+import { resolveDictionary } from '@/lib/copy';
 import { site } from '@/content/site';
+import { resolveSite } from '@/lib/site-content';
 import { isLocale, locales } from '@/lib/i18n';
 
 export const size = { width: 1200, height: 630 };
@@ -25,12 +26,12 @@ export default async function OpengraphImage({
 }) {
   const { locale: raw } = await params;
   const locale = isLocale(raw) ? raw : 'en';
-  const dict = getDictionary(locale);
+  const dict = await resolveDictionary(locale);
+  const site = await resolveSite();
 
-  const lines =
-    locale === 'zh-hk'
-      ? ['打造球會。', '成就賽事。']
-      : ['BUILD THE CLUB.', 'BUILD THE GAME.'];
+  /* Taken from the dictionary rather than repeated here, so an edited hero
+     headline shows up on the share card too. */
+  const lines = [dict.home.hero.headlineLineOne, dict.home.hero.headlineLineTwo];
 
   return new ImageResponse(
     (

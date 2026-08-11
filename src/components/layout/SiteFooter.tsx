@@ -3,12 +3,15 @@ import { Mail } from 'lucide-react';
 import { InstagramGlyph } from '@/components/ui/icons';
 import Wordmark from '@/components/brand/Wordmark';
 import PitchLinePattern from '@/components/ui/PitchLinePattern';
-import { getDictionary } from '@/content/dictionaries';
-import { footerNav, site, type RouteKey } from '@/content/site';
+import { resolveDictionary } from '@/lib/copy';
+import { resolveBrand, resolveSite } from '@/lib/site-content';
+import { footerNav, type RouteKey } from '@/content/site';
 import { pathFor, type Locale } from '@/lib/i18n';
 
-export default function SiteFooter({ locale }: { locale: Locale }) {
-  const dict = getDictionary(locale);
+export default async function SiteFooter({ locale }: { locale: Locale }) {
+  const dict = await resolveDictionary(locale);
+  const site = await resolveSite();
+  const brand = await resolveBrand();
   const year = new Date().getFullYear();
 
   const labels: Record<RouteKey, string> = {
@@ -34,7 +37,11 @@ export default function SiteFooter({ locale }: { locale: Locale }) {
         <div className="grid gap-12 md:grid-cols-12 md:gap-10">
           {/* Brand block */}
           <div className="md:col-span-5">
-            <Wordmark className="text-display-md" />
+            <Wordmark
+              className="text-display-md"
+              logoUrl={brand.logoUrl}
+              name={site.name}
+            />
             <p className="mt-4 max-w-[34ch] text-sm text-mute">
               {site.tagline[locale]}
             </p>

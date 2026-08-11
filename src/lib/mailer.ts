@@ -1,6 +1,6 @@
-import { site } from '@/content/site';
+import { resolveSite } from './site-content';
 import type { ContactFormValues } from './contact-schema';
-import { getDictionary } from '@/content/dictionaries';
+import { resolveDictionary } from './copy';
 import type { Locale } from './i18n';
 
 export type DeliveryResult =
@@ -21,11 +21,12 @@ export type DeliveryResult =
  */
 export async function deliverEnquiry(values: ContactFormValues): Promise<DeliveryResult> {
   const apiKey = process.env.RESEND_API_KEY;
+  const site = await resolveSite();
   const to = process.env.CONTACT_TO_EMAIL ?? site.email;
   const from = process.env.CONTACT_FROM_EMAIL ?? 'TAP IN. Website <onboarding@resend.dev>';
 
   const subject = `New enquiry — ${values.organisation} (${values.service})`;
-  const text = renderPlainText(values);
+  const text = await renderPlainText(values);
 
   if (!apiKey) {
     // Development fallback. Deliberately loud, and explicitly not a success.
@@ -72,9 +73,10 @@ export async function deliverEnquiry(values: ContactFormValues): Promise<Deliver
 }
 
 /** Human-readable enquiry, labelled in the language the visitor used. */
-function renderPlainText(values: ContactFormValues): string {
+async function renderPlainText(values: ContactFormValues): Promise<string> {
   const locale = values.locale as Locale;
-  const dict = getDictionary(locale);
+  const dict = await resolveDictionary(locale);
+  const site = await resolveSite();
   const form = dict.contact.form;
   const options = dict.contact.options;
 

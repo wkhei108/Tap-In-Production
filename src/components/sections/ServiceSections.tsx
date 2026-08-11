@@ -3,6 +3,8 @@ import Reveal from '@/components/ui/Reveal';
 import MediaFrame from '@/components/media/MediaFrame';
 import type { ServiceDetail } from '@/content/services';
 import type { Locale } from '@/lib/i18n';
+import type { MediaSlotRecord } from '@/lib/campaign-schema';
+import { serviceSlotAspect, slotFrameProps } from '@/lib/media-slots';
 import { cn } from '@/lib/utils';
 
 type Props = {
@@ -10,8 +12,8 @@ type Props = {
   locale: Locale;
   tone: 'club' | 'game';
   mediaPendingLabel: string;
-  /** Folder under /public/media used for the expected asset paths. */
-  mediaFolder: string;
+  /** Uploaded images, keyed by slot. Each service has one. */
+  pageMedia: Record<string, MediaSlotRecord>;
 };
 
 const tones = {
@@ -31,7 +33,7 @@ export default function ServiceSections({
   locale,
   tone,
   mediaPendingLabel,
-  mediaFolder,
+  pageMedia,
 }: Props) {
   const t = tones[tone];
 
@@ -86,12 +88,13 @@ export default function ServiceSections({
             {/* Media */}
             <div className={cn('md:col-span-5', mediaFirst && 'md:order-1 md:col-start-1 md:row-start-1')}>
               <MediaFrame
-                aspect={index % 3 === 1 ? 'portrait' : 'landscape'}
-                alt={`${service.title[locale]} — ${mediaPendingLabel}`}
+                {...slotFrameProps(pageMedia[`services.${tone}.${service.id}`], locale, {
+                  alt: `${service.title[locale]} — ${mediaPendingLabel}`,
+                  aspect: serviceSlotAspect(index),
+                })}
                 sizes="(min-width: 768px) 40vw, 100vw"
                 tone={tone}
                 placeholderLabel={mediaPendingLabel}
-                expectedPath={`/media/${mediaFolder}/${service.id}.webp`}
               />
             </div>
           </Reveal>

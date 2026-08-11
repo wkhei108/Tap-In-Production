@@ -90,13 +90,91 @@ export const heroSchema = z.object({
 
 export type HeroRecord = z.infer<typeof heroSchema>;
 
+/* ==========================================================================
+   Page media
+
+   The fixed image slots the layouts reserve — the two on the home intro, the
+   two on About, and one per service on each pillar page. Keyed by slot, so a
+   slot that has never been filled simply has no entry and the page keeps
+   rendering its branded placeholder.
+   ========================================================================== */
+
+export const mediaSlotSchema = z.object({
+  url: z.string().url(),
+  aspect: z.enum(photoAspects),
+  altText: z.string().min(1),
+  altTextZh: z.string().min(1),
+  caption: localisedSchema.optional(),
+  updatedAt: z.string().optional(),
+});
+
+export type MediaSlotRecord = z.infer<typeof mediaSlotSchema>;
+
+export const mediaSlotMapSchema = z.record(z.string(), mediaSlotSchema);
+
+/**
+ * The Instagram rail.
+ *
+ * Every field is optional and overlays `src/content/social.ts`, so a post can
+ * have just its link updated without re-entering the alt text.
+ */
+export const socialPostSchema = z.object({
+  url: z.string().url().optional(),
+  href: z.string().url().optional(),
+  aspect: z.enum(photoAspects).optional(),
+  altText: z.string().optional(),
+  altTextZh: z.string().optional(),
+  caption: localisedSchema.optional(),
+  updatedAt: z.string().optional(),
+});
+
+export type SocialPostRecord = z.infer<typeof socialPostSchema>;
+
+export const socialPostMapSchema = z.record(z.string(), socialPostSchema);
+
+/** Brand artwork. Absent entries fall back to what ships in `public/brand`. */
+export const brandAssetsSchema = z.object({
+  logoUrl: z.string().url().optional(),
+  markUrl: z.string().url().optional(),
+  iconUrl: z.string().url().optional(),
+  ogImageUrl: z.string().url().optional(),
+});
+
+export type BrandAssets = z.infer<typeof brandAssetsSchema>;
+
+/**
+ * Site identity, overlaying `src/content/site.ts`.
+ *
+ * `url` and `analyticsId` are deliberately absent: they are deploy
+ * configuration read from the environment, not editorial content, and letting
+ * the tool set them would mean an edit that silently loses to an env var.
+ */
+export const siteSettingsSchema = z.object({
+  name: z.string().optional(),
+  legalName: z.string().optional(),
+  tagline: localisedSchema.optional(),
+  email: z.string().optional(),
+  instagramHandle: z.string().optional(),
+  instagramUrl: z.string().optional(),
+  areaServed: z.string().optional(),
+  signOff: z.string().optional(),
+  whatsapp: z.string().optional(),
+  updatedAt: z.string().optional(),
+});
+
+export type SiteSettingsRecord = z.infer<typeof siteSettingsSchema>;
+
 export const siteIndexSchema = z.object({
   version: z.literal(1),
   campaigns: z.record(z.string(), campaignRecordSchema),
-  /* Both optional, so indexes written before these existed still parse — the
+  /* All optional, so indexes written before these existed still parse — the
      same additive move as `pinned` on a photo. */
   categories: categoryMapSchema.optional(),
   hero: heroSchema.optional(),
+  pageMedia: mediaSlotMapSchema.optional(),
+  socialPosts: socialPostMapSchema.optional(),
+  brand: brandAssetsSchema.optional(),
+  settings: siteSettingsSchema.optional(),
 });
 
 export type SiteIndex = z.infer<typeof siteIndexSchema>;
@@ -189,4 +267,88 @@ export const campaignReorderSchema = z.object({
 export const heroTextSchema = z.object({
   posterAltText: z.string().trim().min(1, 'Alt text is required in English.').max(125),
   posterAltTextZh: z.string().trim().min(1, 'Alt text is required in Chinese.').max(125),
+});
+
+/* ==========================================================================
+   Page media, social and settings payloads
+   ========================================================================== */
+
+const altTextPair = {
+  altText: z.string().trim().min(1, 'Alt text is required in English.').max(125),
+  altTextZh: z.string().trim().min(1, 'Alt text is required in Chinese.').max(125),
+};
+
+/* A caption is only stored when both languages are present — a note that
+   appears in English and vanishes in Chinese reads as a bug. */
+const captionPair = {
+  captionEn: z.string().trim().max(60).optional().or(z.literal('')),
+  captionZh: z.string().trim().max(60).optional().or(z.literal('')),
+};
+
+/** Words for one page media slot. The image itself arrives as multipart. */
+export const mediaSlotTextSchema = z.object({
+  slot: z.string().trim().min(1, 'Choose a slot.').max(120),
+  ...altTextPair,
+  ...captionPair,
+});
+
+export type MediaSlotTextValues = z.infer<typeof mediaSlotTextSchema>;
+
+/** Words and link for one Instagram rail card. */
+export const socialPostTextSchema = z.object({
+  id: z.string().trim().min(1, 'Choose a post.').max(60),
+  href: z
+    .string()
+    .trim()
+    .url('Enter a full link, starting with https://')
+    .max(400)
+    .optional()
+    .or(z.literal('')),
+  ...altTextPair,
+  ...captionPair,
+});
+
+export type SocialPostTextValues = z.infer<typeof socialPostTextSchema>;
+
+/**
+ * Site identity.
+ *
+ * Every field is optional-but-emptyable: clearing one falls back to the value
+ * in `src/content/site.ts` rather than blanking the site.
+ */
+const optionalText = (max: number) => z.string().trim().max(max).optional().or(z.literal(''));
+
+export const siteSettingsPayloadSchema = z.object({
+  name: optionalText(80),
+  legalName: optionalText(120),
+  tagline: optionalText(160),
+  taglineZh: optionalText(160),
+  email: z
+    .string()
+    .trim()
+    .email('Enter a valid email address.')
+    .max(160)
+    .optional()
+    .or(z.literal('')),
+  instagramHandle: optionalText(60),
+  instagramUrl: z
+    .string()
+    .trim()
+    .url('Enter a full link, starting with https://')
+    .max(300)
+    .optional()
+    .or(z.literal('')),
+  areaServed: optionalText(120),
+  signOff: optionalText(120),
+  whatsapp: optionalText(40),
+});
+
+export type SiteSettingsValues = z.infer<typeof siteSettingsPayloadSchema>;
+
+/** Which piece of brand artwork an upload is replacing. */
+export const brandAssetKinds = ['logo', 'mark', 'icon', 'ogImage'] as const;
+export type BrandAssetKind = (typeof brandAssetKinds)[number];
+
+export const brandAssetSchema = z.object({
+  kind: z.enum(brandAssetKinds, { message: 'Choose which asset to replace.' }),
 });

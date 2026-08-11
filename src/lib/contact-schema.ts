@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { getDictionary } from '@/content/dictionaries';
-import type { Locale } from './i18n';
+import { en } from '@/content/en';
 
 /* ==========================================================================
    Option sets — the single source of truth for the <select> fields and for
@@ -55,8 +54,16 @@ export type ReferralOption = (typeof referralOptions)[number];
  * The same schema runs in the browser and on the server, so the visitor sees
  * the identical message in their own language either way.
  */
-export function createContactSchema(locale: Locale) {
-  const messages = getDictionary(locale).contact.validation;
+/**
+ * The validation strings, which are themselves editable.
+ *
+ * Passed in rather than looked up: the form is a client component and the
+ * route is a server one, so neither can share a synchronous dictionary — but
+ * both already hold the resolved copy for the locale they are working in.
+ */
+export type ContactValidationMessages = typeof en.contact.validation;
+
+export function createContactSchema(messages: ContactValidationMessages) {
 
   return z.object({
     name: z

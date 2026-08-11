@@ -1,6 +1,6 @@
 import SectionHeading from '@/components/ui/SectionHeading';
 import Reveal from '@/components/ui/Reveal';
-import { getDictionary } from '@/content/dictionaries';
+import { resolveDictionary } from '@/lib/copy';
 import type { Locale } from '@/lib/i18n';
 
 /**
@@ -10,8 +10,8 @@ import type { Locale } from '@/lib/i18n';
  * makes possible, and explicitly does not promise sponsorship revenue or
  * audience figures.
  */
-export default function SponsorValueSection({ locale }: { locale: Locale }) {
-  const dict = getDictionary(locale);
+export default async function SponsorValueSection({ locale }: { locale: Locale }) {
+  const dict = await resolveDictionary(locale);
   const copy = dict.home.commercial;
 
   return (

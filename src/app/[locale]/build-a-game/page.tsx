@@ -11,8 +11,8 @@ import Reveal from '@/components/ui/Reveal';
 import PrimaryCTA from '@/components/ui/PrimaryCTA';
 import ProjectGrid from '@/components/work/ProjectGrid';
 
-import { getDictionary } from '@/content/dictionaries';
-import { gameDeliverablesBoard, gameEventJourney, gameServices } from '@/content/services';
+import { resolveDictionary, resolveServiceContent } from '@/lib/copy';
+import { resolvePageMedia } from '@/lib/site-content';
 import { filterProjects } from '@/content/projects';
 import { resolveProjects } from '@/lib/campaigns';
 import { isLocale, pathFor, type Locale } from '@/lib/i18n';
@@ -29,7 +29,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale: raw } = await params;
   if (!isLocale(raw)) return {};
-  const dict = getDictionary(raw);
+  const dict = await resolveDictionary(raw);
 
   return buildMetadata({
     locale: raw,
@@ -49,8 +49,10 @@ export default async function BuildAGamePage({
   if (!isLocale(raw)) notFound();
 
   const locale: Locale = raw;
-  const dict = getDictionary(locale);
+  const dict = await resolveDictionary(locale);
+  const pageMedia = await resolvePageMedia();
   const gameProjects = filterProjects(await resolveProjects(), 'game').slice(0, 4);
+  const { gameServices, gameEventJourney, gameDeliverablesBoard } = await resolveServiceContent();
 
   return (
     <>
@@ -113,7 +115,7 @@ export default async function BuildAGamePage({
             locale={locale}
             tone="game"
             mediaPendingLabel={dict.common.mediaPending}
-            mediaFolder="build-a-game"
+            pageMedia={pageMedia}
           />
         </div>
       </section>

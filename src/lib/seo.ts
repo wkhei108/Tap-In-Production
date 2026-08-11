@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
-import { site } from '@/content/site';
-import { getDictionary } from '@/content/dictionaries';
+import { resolveDictionary } from './copy';
+import { resolveSite } from './site-content';
+import { resolveBrand } from './site-content';
 import {
   absoluteUrl,
   languageAlternates,
@@ -23,7 +24,7 @@ type BuildMetadataArgs = {
   absoluteTitle?: boolean;
 };
 
-export function buildMetadata({
+export async function buildMetadata({
   locale,
   title,
   description,
@@ -31,9 +32,14 @@ export function buildMetadata({
   pathForLocale,
   ogImage,
   absoluteTitle = false,
-}: BuildMetadataArgs): Metadata {
+}: BuildMetadataArgs): Promise<Metadata> {
+  const site = await resolveSite();
+  const brand = await resolveBrand();
+
   const url = absoluteUrl(site.url, path);
-  const image = ogImage ?? absoluteUrl(site.url, `/${locale}/opengraph-image`);
+  /* An uploaded share image wins over the one generated from design tokens. */
+  const image =
+    ogImage ?? brand.ogImageUrl ?? absoluteUrl(site.url, `/${locale}/opengraph-image`);
 
   return {
     title: absoluteTitle ? { absolute: title } : title,
@@ -69,8 +75,9 @@ export function buildMetadata({
  * Deliberately limited to facts TAP IN. has supplied — no street address,
  * telephone, founding date or opening hours are invented here.
  */
-export function organisationJsonLd(locale: Locale) {
-  const dict = getDictionary(locale);
+export async function organisationJsonLd(locale: Locale) {
+  const dict = await resolveDictionary(locale);
+  const site = await resolveSite();
 
   return {
     '@context': 'https://schema.org',
@@ -109,7 +116,9 @@ export function organisationJsonLd(locale: Locale) {
   };
 }
 
-export function websiteJsonLd(locale: Locale) {
+export async function websiteJsonLd(locale: Locale) {
+  const site = await resolveSite();
+
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -121,9 +130,11 @@ export function websiteJsonLd(locale: Locale) {
   };
 }
 
-export function breadcrumbJsonLd(
+export async function breadcrumbJsonLd(
   items: Array<{ name: string; path: string }>,
 ) {
+  const site = await resolveSite();
+
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',

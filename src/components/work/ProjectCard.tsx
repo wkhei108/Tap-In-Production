@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import MediaFrame from '@/components/media/MediaFrame';
 import DisplayText from '@/components/ui/DisplayText';
-import { getDictionary } from '@/content/dictionaries';
+import { resolveDictionary } from '@/lib/copy';
 import {
   categoryLabel,
   projectAlt,
@@ -22,7 +22,7 @@ type Props = {
   className?: string;
 };
 
-export default function ProjectCard({
+export default async function ProjectCard({
   project,
   locale,
   emphasis = 'standard',
@@ -30,7 +30,7 @@ export default function ProjectCard({
   priority = false,
   className,
 }: Props) {
-  const dict = getDictionary(locale);
+  const dict = await resolveDictionary(locale);
   const href = pathFor(locale, 'work', project.slug);
 
   return (

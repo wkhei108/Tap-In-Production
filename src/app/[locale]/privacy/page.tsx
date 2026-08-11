@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
 import PageHero from '@/components/sections/PageHero';
-import { getDictionary } from '@/content/dictionaries';
-import { site } from '@/content/site';
+import { resolveDictionary } from '@/lib/copy';
+import { resolveSite } from '@/lib/site-content';
 import { isLocale, pathFor, type Locale } from '@/lib/i18n';
 import { buildMetadata } from '@/lib/seo';
 
@@ -26,7 +26,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale: raw } = await params;
   if (!isLocale(raw)) return {};
-  const dict = getDictionary(raw);
+  const dict = await resolveDictionary(raw);
 
   return buildMetadata({
     locale: raw,
@@ -46,7 +46,8 @@ export default async function PrivacyPage({
   if (!isLocale(raw)) notFound();
 
   const locale: Locale = raw;
-  const dict = getDictionary(locale);
+  const dict = await resolveDictionary(locale);
+  const site = await resolveSite();
 
   const formatted = new Intl.DateTimeFormat(
     locale === 'zh-hk' ? 'zh-Hant-HK' : 'en-GB',

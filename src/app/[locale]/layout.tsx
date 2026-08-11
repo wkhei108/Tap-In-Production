@@ -6,8 +6,8 @@ import SiteFooter from '@/components/layout/SiteFooter';
 import SkipLink from '@/components/layout/SkipLink';
 import TextureOverlay from '@/components/ui/TextureOverlay';
 import Analytics from '@/components/system/Analytics';
-import { getDictionary } from '@/content/dictionaries';
-import { site } from '@/content/site';
+import { resolveDictionary } from '@/lib/copy';
+import { resolveBrand, resolveSite } from '@/lib/site-content';
 import { isLocale, localeMeta, locales, type Locale } from '@/lib/i18n';
 import { organisationJsonLd, websiteJsonLd } from '@/lib/seo';
 import '../globals.css';
@@ -49,7 +49,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale: raw } = await params;
   if (!isLocale(raw)) return {};
-  const dict = getDictionary(raw);
+
+  const dict = await resolveDictionary(raw);
+  const site = await resolveSite();
+  const brand = await resolveBrand();
 
   return {
     metadataBase: new URL(site.url),
@@ -63,6 +66,9 @@ export async function generateMetadata({
     publisher: site.name,
     formatDetection: { telephone: false, address: false, email: false },
     manifest: '/manifest.webmanifest',
+    /* An uploaded icon takes over the tab; `src/app/icon.svg` stays as the
+       fallback Next.js serves when nothing has been uploaded. */
+    ...(brand.iconUrl ? { icons: { icon: brand.iconUrl, apple: brand.iconUrl } } : {}),
     robots: {
       index: true,
       follow: true,
@@ -82,7 +88,12 @@ export default async function LocaleLayout({
   if (!isLocale(raw)) notFound();
 
   const locale: Locale = raw;
-  const dict = getDictionary(locale);
+  const dict = await resolveDictionary(locale);
+
+  const [organisation, website] = await Promise.all([
+    organisationJsonLd(locale),
+    websiteJsonLd(locale),
+  ]);
 
   return (
     <html
@@ -103,10 +114,7 @@ export default async function LocaleLayout({
           type="application/ld+json"
           // Structured data is generated from typed config, not user input.
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify([
-              organisationJsonLd(locale),
-              websiteJsonLd(locale),
-            ]),
+            __html: JSON.stringify([organisation, website]),
           }}
         />
       </body>

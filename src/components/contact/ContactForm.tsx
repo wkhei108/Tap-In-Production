@@ -12,7 +12,7 @@ import {
   toFieldErrors,
   type ContactField,
 } from '@/lib/contact-schema';
-import { getDictionary } from '@/content/dictionaries';
+import type { Dictionary } from '@/content/dictionaries';
 import { pathFor, type Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -35,8 +35,19 @@ const emptyForm = {
 
 type FormState = typeof emptyForm;
 
-export default function ContactForm({ locale }: { locale: Locale }) {
-  const dict = getDictionary(locale);
+/**
+ * The enquiry form.
+ *
+ * `dict` is resolved on the server and passed down: this is a client
+ * component, so it cannot read the copy overlay itself.
+ */
+export default function ContactForm({
+  locale,
+  dict,
+}: {
+  locale: Locale;
+  dict: Dictionary;
+}) {
   const t = dict.contact.form;
   const options = dict.contact.options;
 
@@ -67,7 +78,7 @@ export default function ContactForm({ locale }: { locale: Locale }) {
     setServerMessage('');
 
     const payload = { ...values, locale };
-    const parsed = createContactSchema(locale).safeParse(payload);
+    const parsed = createContactSchema(dict.contact.validation).safeParse(payload);
 
     if (!parsed.success) {
       const fieldErrors = toFieldErrors(parsed.error);

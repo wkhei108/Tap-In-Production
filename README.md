@@ -159,31 +159,45 @@ the template. Replace them before launch.
 
 No client photography or video has been supplied yet. Rather than shipping
 stock football imagery, every image slot renders through `MediaFrame`, which
-draws a branded panel at exactly the right aspect ratio and prints the file
-path it is waiting for. Nothing breaks, nothing shifts, and swapping in a real
-asset is: drop the file in, set the path.
+draws a branded panel at exactly the right aspect ratio. Nothing breaks and
+nothing shifts; a slot simply stays a placeholder until something is uploaded.
 
-The hero accepts an optional showreel. Set `videoSrc` and `posterSrc` on
-`<HeroShowreel>` in `src/app/[locale]/page.tsx` once the files exist. The
+The hero accepts an optional showreel, uploaded under Admin → Campaigns. The
 video is only fetched for visitors who are not on reduced motion and not on a
 metered or slow connection; everyone else gets the poster.
 
 Full specifications — filenames, dimensions, aspect ratios, compression and
 alt-text rules — are in [`docs/asset-guide.md`](docs/asset-guide.md).
 
-### Updating photos without a deploy
+### Editing the site without a deploy
 
-There are two ways to put a photo on the site, and they coexist:
+`src/content/` stays the source of truth for everything that shipped with the
+build. The admin writes a **sparse overlay** on top of it in Vercel Blob, and
+the site merges the two per request. Nothing is ever written back into the
+repo, and with no Blob store — or an unreachable one — every page renders
+exactly what was committed.
 
-| | Where it lives | Who can do it | When to use it |
-| --- | --- | --- | --- |
-| **In the repo** | `public/media/`, wired up in `src/content/projects.ts` | anyone editing code | the permanent set — covers, hero, service images |
-| **`/admin/media`** | the project's Vercel Blob store | anyone with the admin token | adding case-study photos after launch |
+That means a copy fix shipped in code still reaches every field nobody has
+edited, and copy *added* in code shows up in the tool automatically: the field
+list is walked out of the content rather than maintained by hand.
 
-The admin tool never edits `src/content/projects.ts`, so the repo stays the
-source of truth for everything that shipped with the build. What it does own is
-the running order around those entries: uploads can be reordered, and a photo
-can be **pinned** to lead the gallery ahead of the built-in slots.
+| Screen | What it owns |
+| --- | --- |
+| **Campaigns** | case studies, covers, photo galleries, the homepage hero |
+| **Home / About / Build a Club / Build a Game / Work / Contact / Privacy** | every heading, paragraph, button, option and caption on that page, in both languages — plus its images |
+| **Navigation & footer** | copy that appears on every page, including the 404 |
+| **Settings** | name, tagline, contact details, and the logo, app mark, favicon and share image |
+
+Two things stay in code deliberately. The long case-study prose (brief,
+challenge, approach, deliverables) lives in `src/content/projects.ts`, where
+the compiler enforces English/Chinese parity. And the number of items in a
+structured list — the seven services, the About cards, the privacy sections —
+is code-defined; their wording is fully editable, and simple bullet lists can
+be added to and removed from freely.
+
+`NEXT_PUBLIC_SITE_URL` and the analytics ID are shown read-only in Settings:
+they are deploy configuration, so an edit there could only ever be silently
+overridden by the environment.
 
 ### Managing campaigns
 

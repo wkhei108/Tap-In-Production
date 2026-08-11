@@ -6,6 +6,7 @@ import { readCookie, sessionCookieName, verifySessionValue } from './admin-sessi
 import { clientKey, createRateLimiter } from './rate-limit';
 import { readSiteIndex } from './campaigns';
 import { projects } from '@/content/projects';
+import { routes, type RouteKey } from '@/content/site';
 import { locales, pathFor } from './i18n';
 
 /* ==========================================================================
@@ -66,4 +67,52 @@ export function refreshCampaignListings(): void {
     revalidatePath(pathFor(locale, 'buildAClub'));
     revalidatePath(pathFor(locale, 'buildAGame'));
   }
+}
+
+/** Which route each copy namespace and media group publishes to. */
+const editorRoutes: Record<string, RouteKey[]> = {
+  home: ['home'],
+  about: ['about'],
+  club: ['buildAClub'],
+  game: ['buildAGame'],
+  work: ['work'],
+  contact: ['contact'],
+  privacy: ['privacy'],
+};
+
+/**
+ * Publish one editor screen's pages in both locales.
+ *
+ * The home namespace owns the capability grid and the process timeline, which
+ * the about page renders too, so that pairing refreshes both.
+ */
+export function refreshEditorScreen(namespace: string): void {
+  const routes = editorRoutes[namespace];
+
+  if (!routes) {
+    refreshEverything();
+    return;
+  }
+
+  for (const locale of locales) {
+    for (const route of routes) revalidatePath(pathFor(locale, route));
+    /* Capabilities and the process steps are shared between the two. */
+    if (namespace === 'home') revalidatePath(pathFor(locale, 'about'));
+  }
+}
+
+/**
+ * Publish the whole site.
+ *
+ * Used for the header, footer, shared labels, brand artwork and site
+ * settings — all of which render on every page, so anything narrower would
+ * leave stale copy somewhere.
+ */
+export function refreshEverything(): void {
+  for (const locale of locales) {
+    for (const route of Object.keys(routes) as RouteKey[]) {
+      revalidatePath(pathFor(locale, route));
+    }
+  }
+  refreshCampaignListings();
 }

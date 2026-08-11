@@ -8,7 +8,9 @@ import Reveal from '@/components/ui/Reveal';
 import MediaFrame from '@/components/media/MediaFrame';
 import ProcessTimeline from '@/components/home/ProcessTimeline';
 
-import { getDictionary } from '@/content/dictionaries';
+import { resolveDictionary } from '@/lib/copy';
+import { resolvePageMedia } from '@/lib/site-content';
+import { slotFrameProps } from '@/lib/media-slots';
 import { isLocale, pathFor, type Locale } from '@/lib/i18n';
 import { buildMetadata } from '@/lib/seo';
 
@@ -19,7 +21,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale: raw } = await params;
   if (!isLocale(raw)) return {};
-  const dict = getDictionary(raw);
+  const dict = await resolveDictionary(raw);
 
   return buildMetadata({
     locale: raw,
@@ -39,7 +41,8 @@ export default async function AboutPage({
   if (!isLocale(raw)) notFound();
 
   const locale: Locale = raw;
-  const dict = getDictionary(locale);
+  const dict = await resolveDictionary(locale);
+  const pageMedia = await resolvePageMedia();
 
   return (
     <>
@@ -67,11 +70,12 @@ export default async function AboutPage({
           </div>
           <Reveal className="lg:col-span-6">
             <MediaFrame
-              aspect="landscape"
-              alt={dict.about.pov.headline}
+              {...slotFrameProps(pageMedia['about.pov'], locale, {
+                alt: dict.about.pov.headline,
+                aspect: 'landscape',
+              })}
               sizes="(min-width: 1024px) 48vw, 100vw"
               placeholderLabel={dict.common.mediaPending}
-              expectedPath="/media/about/team-at-work.webp"
             />
           </Reveal>
         </div>
@@ -181,11 +185,12 @@ export default async function AboutPage({
         <div className="grid gap-10 lg:grid-cols-12 lg:gap-14">
           <Reveal className="lg:col-span-6">
             <MediaFrame
-              aspect="portrait"
-              alt={dict.about.hongKong.headline}
+              {...slotFrameProps(pageMedia['about.hongKong'], locale, {
+                alt: dict.about.hongKong.headline,
+                aspect: 'portrait',
+              })}
               sizes="(min-width: 1024px) 48vw, 100vw"
               placeholderLabel={dict.common.mediaPending}
-              expectedPath="/media/about/hong-kong-football.webp"
             />
           </Reveal>
           <div className="lg:col-span-6 lg:self-center">

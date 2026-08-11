@@ -10,7 +10,7 @@ import DisplayText from "@/components/ui/DisplayText";
 import FinalCTA from "@/components/sections/FinalCTA";
 import PitchLinePattern from "@/components/ui/PitchLinePattern";
 
-import { getDictionary } from "@/content/dictionaries";
+import { resolveDictionary } from '@/lib/copy';
 import {
   categoryLabel,
   getAllProjects,
@@ -46,7 +46,7 @@ export async function generateMetadata({
   if (!isLocale(raw)) return {};
 
   const project = await resolveProjectBySlug(slug);
-  const dict = getDictionary(raw);
+  const dict = await resolveDictionary(raw);
   if (!project) return { title: dict.project.notFoundTitle };
 
   return buildMetadata({
@@ -72,7 +72,7 @@ export default async function ProjectPage({
   if (!project) notFound();
 
   const locale: Locale = raw;
-  const dict = getDictionary(locale);
+  const dict = await resolveDictionary(locale);
   const related = await resolveRelatedProjects(slug, 3);
 
   /* Photos uploaded through the admin tool surround the gallery declared in
@@ -86,7 +86,7 @@ export default async function ProjectPage({
     ...managed.items.filter((photo) => !photo.pinned).map(toMediaItem),
   ];
 
-  const breadcrumbs = breadcrumbJsonLd([
+  const breadcrumbs = await breadcrumbJsonLd([
     { name: dict.nav.home, path: pathFor(locale, "home") },
     { name: dict.nav.work, path: pathFor(locale, "work") },
     {

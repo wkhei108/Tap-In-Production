@@ -1,8 +1,8 @@
 import DisplayText from '@/components/ui/DisplayText';
 import PrimaryCTA from '@/components/ui/PrimaryCTA';
 import PitchLinePattern from '@/components/ui/PitchLinePattern';
-import { getDictionary } from '@/content/dictionaries';
-import { site } from '@/content/site';
+import { resolveDictionary } from '@/lib/copy';
+import { resolveSite } from '@/lib/site-content';
 import { pathFor, type Locale } from '@/lib/i18n';
 
 type Props = {
@@ -21,7 +21,7 @@ const toneRing = {
 } as const;
 
 /** The closing enquiry block, shared by every page. */
-export default function FinalCTA({
+export default async function FinalCTA({
   locale,
   headline,
   body,
@@ -29,7 +29,8 @@ export default function FinalCTA({
   secondaryLabel,
   tone = 'lime',
 }: Props) {
-  const dict = getDictionary(locale);
+  const dict = await resolveDictionary(locale);
+  const site = await resolveSite();
 
   return (
     <section

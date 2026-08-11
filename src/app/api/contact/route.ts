@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createContactSchema, toFieldErrors } from '@/lib/contact-schema';
 import { deliverEnquiry } from '@/lib/mailer';
-import { getDictionary } from '@/content/dictionaries';
+import { resolveDictionary } from '@/lib/copy';
 import { isLocale, defaultLocale, type Locale } from '@/lib/i18n';
 import { clientKey, createRateLimiter } from '@/lib/rate-limit';
 
@@ -28,8 +28,8 @@ export async function POST(request: Request) {
       ? ((payload as { locale: Locale }).locale)
       : defaultLocale;
 
-  const dict = getDictionary(requestedLocale);
-  const schema = createContactSchema(requestedLocale);
+  const dict = await resolveDictionary(requestedLocale);
+  const schema = createContactSchema(dict.contact.validation);
   const parsed = schema.safeParse(payload);
 
   if (!parsed.success) {
