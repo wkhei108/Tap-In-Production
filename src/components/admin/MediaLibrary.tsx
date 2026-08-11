@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, GripVertical, Pin, PinOff, Upload, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, GripVertical, Pin, PinOff, Star, Upload, X } from 'lucide-react';
 
 import {
   acceptedUploadTypes,
@@ -14,6 +14,7 @@ import {
 import { galleryColumns, galleryGridColumns, packGalleryRows } from '@/lib/gallery-layout';
 import { aspectRatios } from '@/lib/utils';
 import type { MediaAspect } from '@/content/projects';
+import type { CampaignCover } from '@/lib/campaign-schema';
 import {
   adminCard,
   adminField,
@@ -29,6 +30,7 @@ type Props = {
   projects: ProjectSummary[];
   initialSlug: string;
   initialItems: ManagedPhoto[];
+  initialCover: CampaignCover | null;
   storageConfigured: boolean;
 };
 
@@ -58,10 +60,12 @@ export default function MediaLibrary({
   projects,
   initialSlug,
   initialItems,
+  initialCover,
   storageConfigured,
 }: Props) {
   const [slug, setSlug] = useState(initialSlug);
   const [items, setItems] = useState<ManagedPhoto[]>(pinnedFirst(initialItems));
+  const [cover, setCover] = useState<CampaignCover | null>(initialCover);
   const [staged, setStaged] = useState<Staged[]>([]);
   const [dirty, setDirty] = useState(false);
   const [status, setStatus] = useState('');
@@ -94,10 +98,14 @@ export default function MediaLibrary({
     setItems(pinnedFirst(body.items));
     setDirty(false);
     setStatus('');
+
+    const coverResponse = await fetch(`/api/media/cover?slug=${encodeURIComponent(nextSlug)}`);
+    if (coverResponse.ok) setCover((await coverResponse.json()).cover);
   }
 
   function switchProject(nextSlug: string) {
     clearStaged();
+    setCover(null);
     setSlug(nextSlug);
     setEditingId(null);
     setConfirmingId(null);
@@ -215,6 +223,78 @@ export default function MediaLibrary({
 
     setStatus('Photo removed.');
     await load(slug);
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Cover                                                             */
+  /* ---------------------------------------------------------------- */
+
+  async function promoteToCover(photoId: string) {
+    setBusy(true);
+    const form = new FormData();
+    form.set('slug', slug);
+    form.set('photoId', photoId);
+
+    const response = await fetch('/api/media/cover', { method: 'POST', body: form });
+    const body = await response.json().catch(() => ({}));
+    setBusy(false);
+
+    if (!response.ok) {
+      setStatus(body.message ?? `Could not set the cover (${body.error ?? response.status}).`);
+      return;
+    }
+
+    setCover(body.cover);
+    setStatus('Cover updated.');
+  }
+
+  async function clearCover() {
+    setBusy(true);
+    const response = await fetch('/api/media/cover', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug }),
+    });
+    const body = await response.json().catch(() => ({}));
+    setBusy(false);
+
+    if (!response.ok) {
+      setStatus(body.message ?? `Could not clear the cover (${body.error ?? response.status}).`);
+      return;
+    }
+
+    setCover(null);
+    setStatus('Cover cleared — back to whatever the site ships with.');
+  }
+
+  async function uploadCover(item: Staged) {
+    setBusy(true);
+    setStatus('Uploading cover…');
+
+    const form = new FormData();
+    form.set('file', item.file);
+    form.set('slug', slug);
+    form.set('aspect', item.aspect);
+    form.set('altText', item.altText);
+    form.set('altTextZh', item.altTextZh);
+
+    const response = await fetch('/api/media/cover', { method: 'POST', body: form });
+    const body = await response.json().catch(() => ({}));
+    setBusy(false);
+
+    if (!response.ok) {
+      const firstFieldError = body.fieldErrors ? Object.values(body.fieldErrors)[0] : undefined;
+      setStatus(
+        (firstFieldError as string | undefined) ??
+          body.message ??
+          `Cover upload failed (${body.error ?? response.status}).`,
+      );
+      return;
+    }
+
+    URL.revokeObjectURL(item.previewUrl);
+    setCover(body.cover);
+    setStatus('Cover updated.');
   }
 
   /* ---------------------------------------------------------------- */
@@ -367,6 +447,13 @@ export default function MediaLibrary({
       </nav>
 
       <div className="flex min-w-0 flex-col gap-8">
+        <CoverPanel
+          cover={cover}
+          busy={busy}
+          onClear={clearCover}
+          onUpload={uploadCover}
+        />
+
         {/* Dropzone */}
         <section aria-labelledby="add-photos">
           <h2 id="add-photos" className={adminLabel}>
@@ -599,6 +686,23 @@ export default function MediaLibrary({
                               </button>
                               <button
                                 type="button"
+                                onClick={() => promoteToCover(item.id)}
+                                disabled={busy || cover?.fromPhotoId === item.id}
+                                aria-label={
+                                  cover?.fromPhotoId === item.id
+                                    ? `Photo ${index + 1} is the cover`
+                                    : `Use photo ${index + 1} as the cover`
+                                }
+                                className={`${adminIconButton} ${
+                                  cover?.fromPhotoId === item.id
+                                    ? 'border-lime/50 text-lime disabled:opacity-100'
+                                    : ''
+                                }`}
+                              >
+                                <Star aria-hidden="true" className="size-3.5" />
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => setEditingId(item.id)}
                                 disabled={busy}
                                 className={adminGhostButton}
@@ -633,6 +737,194 @@ export default function MediaLibrary({
         </section>
       </div>
     </main>
+  );
+}
+
+/* ==========================================================================
+   Cover panel — the one photo that represents the campaign everywhere
+   ========================================================================== */
+
+function CoverPanel({
+  cover,
+  busy,
+  onClear,
+  onUpload,
+}: {
+  cover: CampaignCover | null;
+  busy: boolean;
+  onClear: () => void;
+  onUpload: (item: Staged) => void;
+}) {
+  const [pending, setPending] = useState<Staged | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+
+  function pick(files: FileList | null) {
+    const file = files?.[0];
+    if (!file || !isAcceptedFile(file)) return;
+    if (pending) URL.revokeObjectURL(pending.previewUrl);
+
+    setPending({
+      localId: 'cover',
+      file,
+      previewUrl: URL.createObjectURL(file),
+      aspect: 'landscape',
+      altText: '',
+      altTextZh: '',
+      captionEn: '',
+      captionZh: '',
+    });
+  }
+
+  function discard() {
+    if (pending) URL.revokeObjectURL(pending.previewUrl);
+    setPending(null);
+  }
+
+  return (
+    <section aria-labelledby="cover" className={`${adminCard} p-4`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 id="cover" className={adminLabel}>
+          Cover photo
+        </h2>
+        {cover ? (
+          <button type="button" onClick={onClear} disabled={busy} className={adminGhostButton}>
+            Clear cover
+          </button>
+        ) : null}
+      </div>
+
+      <p className="mt-1.5 text-xs text-mute/70">
+        The one image that represents this campaign — on its own page, on Work, and in
+        every grid that lists it.
+      </p>
+
+      <div className="mt-4 flex flex-wrap items-start gap-4">
+        {cover ? (
+          <>
+            <Image
+              unoptimized
+              src={cover.url}
+              alt={cover.altText}
+              width={192}
+              height={120}
+              className="h-24 w-40 shrink-0 rounded-xs border border-lime/40 object-cover"
+            />
+            <div className="min-w-0 flex-1 text-xs">
+              <p className="truncate text-sm text-bone">{cover.altText}</p>
+              <p className="mt-0.5 truncate text-mute/70">{cover.altTextZh}</p>
+              <p className="mt-1.5 font-mono text-mute/60">
+                {cover.aspect} ·{' '}
+                {cover.fromPhotoId ? 'promoted from the gallery' : 'uploaded as a cover'}
+              </p>
+            </div>
+          </>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="grid h-24 w-40 shrink-0 place-items-center rounded-xs border border-dashed border-line-strong text-[0.65rem] text-mute/50">
+              no cover
+            </div>
+            <p className="text-xs text-mute/70">
+              Showing whatever the site ships with. Star a photo below, or upload one here.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {pending ? (
+        <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row">
+          <div className="sm:w-40 sm:shrink-0">
+            <div
+              style={{ aspectRatio: aspectRatios[pending.aspect] }}
+              className="overflow-hidden rounded-xs border border-line bg-ink"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element -- a local
+                  object URL, never optimised or remote. */}
+              <img src={pending.previewUrl} alt="" className="size-full object-cover" />
+            </div>
+            <div className="mt-2 flex gap-1">
+              {photoAspects.map((aspect) => (
+                <button
+                  key={aspect}
+                  type="button"
+                  onClick={() => setPending({ ...pending, aspect })}
+                  aria-pressed={pending.aspect === aspect}
+                  className={`flex-1 rounded-xs border px-1 py-1 font-mono text-[0.6rem] transition-colors ${
+                    pending.aspect === aspect
+                      ? 'border-lime/50 bg-lime/10 text-lime'
+                      : 'border-line text-mute hover:text-bone'
+                  }`}
+                >
+                  {aspect}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div>
+              <label className={adminLabel} htmlFor="cover-alt">
+                Alt text — English
+              </label>
+              <input
+                id="cover-alt"
+                value={pending.altText}
+                onChange={(event) => setPending({ ...pending, altText: event.target.value })}
+                className={adminField}
+              />
+            </div>
+            <div>
+              <label className={adminLabel} htmlFor="cover-alt-zh">
+                Alt text — 繁體中文
+              </label>
+              <input
+                id="cover-alt-zh"
+                lang="zh-Hant-HK"
+                value={pending.altTextZh}
+                onChange={(event) => setPending({ ...pending, altTextZh: event.target.value })}
+                className={adminField}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onUpload(pending);
+                  setPending(null);
+                }}
+                disabled={busy || !pending.altText.trim() || !pending.altTextZh.trim()}
+                className={adminPrimaryButton}
+              >
+                {busy ? 'Uploading…' : 'Set as cover'}
+              </button>
+              <button type="button" onClick={discard} className={adminGhostButton}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => input.current?.click()}
+            disabled={busy}
+            className={adminGhostButton}
+          >
+            Upload a cover instead
+          </button>
+          <input
+            ref={input}
+            type="file"
+            accept={acceptedUploadTypes.join(',')}
+            onChange={(event) => {
+              pick(event.target.files);
+              event.target.value = '';
+            }}
+            className="sr-only"
+          />
+        </div>
+      )}
+    </section>
   );
 }
 

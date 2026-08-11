@@ -1,9 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 
-import { isAdminConfigured } from '@/lib/admin-auth';
-import { readCookie, sessionCookieName, verifySessionValue } from '@/lib/admin-session';
+import { guardAdmin, isKnownCampaign, refreshCampaign } from '@/lib/admin-guard';
 import { normalisePhoto } from '@/lib/photo-processing';
 import {
   acceptedUploadTypes,
@@ -21,59 +19,16 @@ import {
   savePhoto,
   updatePhotoText,
 } from '@/lib/photo-storage';
-import { clientKey, createRateLimiter } from '@/lib/rate-limit';
-import { getAllProjects } from '@/content/projects';
-import { locales, pathFor } from '@/lib/i18n';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const rateLimited = createRateLimiter({ windowMs: 60_000, max: 30 });
-
-/**
- * A slug is only ever one of the projects declared in `src/content/projects.ts`.
- * Checking against that list rather than a shape regex means a caller cannot
- * invent a storage path, however the string is spelled.
- */
-function isKnownSlug(slug: string): boolean {
-  return getAllProjects().some((project) => project.slug === slug);
-}
-
-/** Publish immediately rather than waiting out the case study's revalidate window. */
-function refreshCaseStudy(slug: string): void {
-  for (const locale of locales) revalidatePath(pathFor(locale, 'work', slug));
-}
-
-/** Rate limit first, so the token itself cannot be brute-forced cheaply. */
-function guard(request: Request): NextResponse | null {
-  if (rateLimited(clientKey(request))) {
-    return NextResponse.json({ ok: false, error: 'rate-limited' }, { status: 429 });
-  }
-
-  if (!isAdminConfigured()) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: 'admin-not-configured',
-        message: 'ADMIN_MEDIA_TOKEN is unset or too short. See .env.example.',
-      },
-      { status: 503 },
-    );
-  }
-
-  if (!verifySessionValue(readCookie(request, sessionCookieName))) {
-    return NextResponse.json({ ok: false, error: 'unauthorised' }, { status: 401 });
-  }
-
-  return null;
-}
-
 export async function GET(request: Request) {
-  const denied = guard(request);
+  const denied = guardAdmin(request);
   if (denied) return denied;
 
   const slug = new URL(request.url).searchParams.get('slug');
-  if (!slug || !isKnownSlug(slug)) {
+  if (!slug || !(await isKnownCampaign(slug))) {
     return NextResponse.json({ ok: false, error: 'unknown-project' }, { status: 400 });
   }
 
@@ -87,7 +42,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const denied = guard(request);
+  const denied = guardAdmin(request);
   if (denied) return denied;
 
   if (!isPhotoStorageConfigured()) {
@@ -153,7 +108,7 @@ export async function POST(request: Request) {
 
   const values = parsed.data;
 
-  if (!isKnownSlug(values.slug)) {
+  if (!(await isKnownCampaign(values.slug))) {
     return NextResponse.json({ ok: false, error: 'unknown-project' }, { status: 400 });
   }
 
@@ -192,7 +147,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: result.reason }, { status: 502 });
   }
 
-  refreshCaseStudy(values.slug);
+  refreshCampaign(values.slug);
 
   return NextResponse.json({
     ok: true,
@@ -205,7 +160,7 @@ export async function POST(request: Request) {
 
 /** Edit what a stored photo says. The image itself is untouched. */
 export async function PUT(request: Request) {
-  const denied = guard(request);
+  const denied = guardAdmin(request);
   if (denied) return denied;
 
   let payload: unknown;
@@ -225,7 +180,7 @@ export async function PUT(request: Request) {
 
   const values = parsed.data;
 
-  if (!isKnownSlug(values.slug)) {
+  if (!(await isKnownCampaign(values.slug))) {
     return NextResponse.json({ ok: false, error: 'unknown-project' }, { status: 400 });
   }
 
@@ -245,14 +200,14 @@ export async function PUT(request: Request) {
     );
   }
 
-  refreshCaseStudy(values.slug);
+  refreshCampaign(values.slug);
 
   return NextResponse.json({ ok: true, photo: result.data });
 }
 
 /** Save a new running order and pin flags for a project. */
 export async function PATCH(request: Request) {
-  const denied = guard(request);
+  const denied = guardAdmin(request);
   if (denied) return denied;
 
   let payload: unknown;
@@ -269,7 +224,7 @@ export async function PATCH(request: Request) {
 
   const { slug, items } = parsed.data;
 
-  if (!isKnownSlug(slug)) {
+  if (!(await isKnownCampaign(slug))) {
     return NextResponse.json({ ok: false, error: 'unknown-project' }, { status: 400 });
   }
 
@@ -278,13 +233,13 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: false, error: result.reason }, { status: 502 });
   }
 
-  refreshCaseStudy(slug);
+  refreshCampaign(slug);
 
   return NextResponse.json({ ok: true, items: result.data.items });
 }
 
 export async function DELETE(request: Request) {
-  const denied = guard(request);
+  const denied = guardAdmin(request);
   if (denied) return denied;
 
   let payload: unknown;
@@ -296,7 +251,7 @@ export async function DELETE(request: Request) {
 
   const { slug, id } = (payload ?? {}) as { slug?: unknown; id?: unknown };
 
-  if (typeof slug !== 'string' || !isKnownSlug(slug)) {
+  if (typeof slug !== 'string' || !(await isKnownCampaign(slug))) {
     return NextResponse.json({ ok: false, error: 'unknown-project' }, { status: 400 });
   }
 
@@ -309,7 +264,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ ok: false, error: result.reason }, { status: 502 });
   }
 
-  refreshCaseStudy(slug);
+  refreshCampaign(slug);
 
   return NextResponse.json({ ok: true, removed: result.data.removed });
 }

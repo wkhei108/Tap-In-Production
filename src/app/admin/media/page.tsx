@@ -5,6 +5,7 @@ import MediaLibrary from '@/components/admin/MediaLibrary';
 import SignOutButton from '@/components/admin/SignOutButton';
 import { sessionCookieName, verifySessionValue } from '@/lib/admin-session';
 import { isPhotoStorageConfigured, readManifest } from '@/lib/photo-storage';
+import { readSiteIndex } from '@/lib/campaigns';
 import { getAllProjects } from '@/content/projects';
 
 // Reads the session cookie and environment state, so never captured at build.
@@ -32,6 +33,9 @@ export default async function AdminMediaPage() {
      tool opens already populated, and there is no loading flash. */
   const initialSlug = projects[0]?.slug ?? '';
   const initialItems = initialSlug ? (await readManifest(initialSlug, { fresh: true })).items : [];
+  const initialCover = initialSlug
+    ? ((await readSiteIndex({ fresh: true })).campaigns[initialSlug]?.cover ?? null)
+    : null;
 
   return (
     <div className="min-h-svh">
@@ -51,6 +55,7 @@ export default async function AdminMediaPage() {
         projects={projects}
         initialSlug={initialSlug}
         initialItems={initialItems}
+        initialCover={initialCover}
         storageConfigured={isPhotoStorageConfigured()}
       />
     </div>
