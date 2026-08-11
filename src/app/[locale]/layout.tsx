@@ -90,7 +90,7 @@ export default async function LocaleLayout({
       className={`${barlowCondensed.variable} ${inter.variable}`}
       suppressHydrationWarning
     >
-      <body className="min-h-svh bg-ink text-bone antialiased">
+      <body className="min-h-svh text-bone antialiased">
         <SkipLink label={dict.nav.skipToContent} />
         <TextureOverlay />
         <SiteHeader locale={locale} />
