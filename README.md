@@ -203,10 +203,17 @@ To switch it on:
    the project. That sets `BLOB_READ_WRITE_TOKEN` automatically.
 2. Set `ADMIN_MEDIA_TOKEN` to at least 32 characters
    (`openssl rand -hex 32`). Anything shorter is refused rather than trusted.
+   This doubles as the sign-in password.
 3. Redeploy, then open `/admin/media`.
 
-With either variable missing, `/admin/media` says exactly what is still needed
-and the site renders precisely as it does today. Nothing half-works.
+Signing in exchanges that password for an HttpOnly cookie that lasts 30 days,
+so it is typed once per device rather than every visit. Rotating
+`ADMIN_MEDIA_TOKEN` invalidates every outstanding session — that is the lever
+to pull if it ever leaks. `src/lib/admin-session.ts` signs the cookie with
+`node:crypto`; there is no session store and no auth dependency.
+
+With either variable missing, the tool says exactly what is still needed and
+the site renders precisely as it does today. Nothing half-works.
 
 Case studies stay statically rendered and revalidate every 5 minutes; an upload
 also refreshes its own case study immediately. Storage lives behind
