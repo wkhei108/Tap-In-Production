@@ -1,12 +1,24 @@
-import MediaManager from '@/components/admin/MediaManager';
-import { isAdminConfigured } from '@/lib/admin-auth';
-import { isPhotoStorageConfigured } from '@/lib/photo-storage';
+import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
+
+import MediaLibrary from '@/components/admin/MediaLibrary';
+import SignOutButton from '@/components/admin/SignOutButton';
+import { sessionCookieName, verifySessionValue } from '@/lib/admin-session';
+import { isPhotoStorageConfigured, readManifest } from '@/lib/photo-storage';
 import { getAllProjects } from '@/content/projects';
 
-// Reads environment state, so it must never be captured at build time.
+// Reads the session cookie and environment state, so never captured at build.
 export const dynamic = 'force-dynamic';
 
-export default function AdminMediaPage() {
+export default async function AdminMediaPage() {
+  const store = await cookies();
+
+  // Gate here rather than in the client: an unauthenticated visitor should
+  // never receive the tool's markup at all.
+  if (!verifySessionValue(store.get(sessionCookieName)?.value ?? null)) {
+    redirect('/admin/login');
+  }
+
   const projects = getAllProjects().map((project) => ({
     slug: project.slug,
     title: project.title,
@@ -16,21 +28,31 @@ export default function AdminMediaPage() {
     builtIn: project.gallery.map((item) => item.aspect),
   }));
 
-  return (
-    <main className="mx-auto w-full max-w-3xl px-5 py-16">
-      <h1 className="font-mono text-xl tracking-tight">TAP IN. — project photos</h1>
-      <p className="mt-3 max-w-[62ch] text-sm text-mute">
-        Photos added here appear in the case study gallery within a few minutes, without
-        a code deploy. Everything already listed in{' '}
-        <code className="text-bone/80">src/content/projects.ts</code> stays where it is —
-        this only adds to it.
-      </p>
+  /* Load the first project's photos here rather than in a client effect: the
+     tool opens already populated, and there is no loading flash. */
+  const initialSlug = projects[0]?.slug ?? '';
+  const initialItems = initialSlug ? (await readManifest(initialSlug, { fresh: true })).items : [];
 
-      <MediaManager
+  return (
+    <div className="min-h-svh">
+      <header className="sticky top-0 z-20 border-b border-line bg-ink/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-5 py-3.5">
+          <div className="flex items-baseline gap-3">
+            <span className="font-mono text-xs uppercase tracking-[0.16em] text-lime">
+              TAP IN.
+            </span>
+            <h1 className="font-mono text-sm text-bone">Media library</h1>
+          </div>
+          <SignOutButton />
+        </div>
+      </header>
+
+      <MediaLibrary
         projects={projects}
-        adminConfigured={isAdminConfigured()}
+        initialSlug={initialSlug}
+        initialItems={initialItems}
         storageConfigured={isPhotoStorageConfigured()}
       />
-    </main>
+    </div>
   );
 }

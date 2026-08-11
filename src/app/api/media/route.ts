@@ -2,11 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { NextResponse } from 'next/server';
 
-import { isAdminConfigured, isAuthorisedAdmin } from '@/lib/admin-auth';
+import { isAdminConfigured } from '@/lib/admin-auth';
+import { readCookie, sessionCookieName, verifySessionValue } from '@/lib/admin-session';
 import { normalisePhoto } from '@/lib/photo-processing';
 import {
   acceptedUploadTypes,
   maxUploadBytes,
+  photoEditSchema,
   photoOrderSchema,
   photoUploadSchema,
   toPhotoFieldErrors,
@@ -17,6 +19,7 @@ import {
   removePhoto,
   reorderPhotos,
   savePhoto,
+  updatePhotoText,
 } from '@/lib/photo-storage';
 import { clientKey, createRateLimiter } from '@/lib/rate-limit';
 import { getAllProjects } from '@/content/projects';
@@ -58,7 +61,7 @@ function guard(request: Request): NextResponse | null {
     );
   }
 
-  if (!isAuthorisedAdmin(request)) {
+  if (!verifySessionValue(readCookie(request, sessionCookieName))) {
     return NextResponse.json({ ok: false, error: 'unauthorised' }, { status: 401 });
   }
 
@@ -198,6 +201,53 @@ export async function POST(request: Request) {
     height: processed.height,
     bytes: processed.bytes,
   });
+}
+
+/** Edit what a stored photo says. The image itself is untouched. */
+export async function PUT(request: Request) {
+  const denied = guard(request);
+  if (denied) return denied;
+
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: 'invalid-json' }, { status: 400 });
+  }
+
+  const parsed = photoEditSchema.safeParse(payload);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { ok: false, error: 'validation', fieldErrors: toPhotoFieldErrors(parsed.error) },
+      { status: 400 },
+    );
+  }
+
+  const values = parsed.data;
+
+  if (!isKnownSlug(values.slug)) {
+    return NextResponse.json({ ok: false, error: 'unknown-project' }, { status: 400 });
+  }
+
+  const result = await updatePhotoText(values.slug, values.id, {
+    altText: values.altText,
+    altTextZh: values.altTextZh,
+    caption:
+      values.captionEn && values.captionZh
+        ? { en: values.captionEn, 'zh-hk': values.captionZh }
+        : undefined,
+  });
+
+  if (!result.ok) {
+    return NextResponse.json(
+      { ok: false, error: result.reason },
+      { status: result.reason === 'not-found' ? 404 : 502 },
+    );
+  }
+
+  refreshCaseStudy(values.slug);
+
+  return NextResponse.json({ ok: true, photo: result.data });
 }
 
 /** Save a new running order and pin flags for a project. */

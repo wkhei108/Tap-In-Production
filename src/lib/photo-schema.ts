@@ -86,21 +86,42 @@ export const photoUploadSchema = z.object({
 export type PhotoUploadValues = z.infer<typeof photoUploadSchema>;
 export type PhotoUploadField = keyof PhotoUploadValues;
 
-/** Flatten Zod issues into `{ field: message }` for the admin form. */
-export function toPhotoFieldErrors(
-  error: z.ZodError<PhotoUploadValues>,
-): Partial<Record<PhotoUploadField, string>> {
-  const result: Partial<Record<PhotoUploadField, string>> = {};
+/**
+ * Editing what a photo says, after it is already stored.
+ *
+ * Deliberately excludes the crop: that is baked into the WebP at upload time,
+ * so changing it here would leave the label disagreeing with the pixels. To
+ * recrop, upload the photo again.
+ */
+export const photoEditSchema = photoUploadSchema
+  .pick({ altText: true, altTextZh: true, captionEn: true, captionZh: true })
+  .extend({
+    slug: z.string().trim().min(1),
+    id: z.string().trim().min(1),
+  });
+
+export type PhotoEditValues = z.infer<typeof photoEditSchema>;
+
+/**
+ * Flatten Zod issues into `{ field: message }` for the admin forms.
+ *
+ * Untyped in its field names on purpose — the upload form and the edit form
+ * carry different fields, and both want the same first-error-per-field shape.
+ */
+export function toPhotoFieldErrors(error: z.ZodError): PhotoFieldErrors {
+  const result: PhotoFieldErrors = {};
 
   for (const issue of error.issues) {
     const key = issue.path[0];
     if (typeof key === 'string' && !(key in result)) {
-      result[key as PhotoUploadField] = issue.message;
+      result[key] = issue.message;
     }
   }
 
   return result;
 }
+
+export type PhotoFieldErrors = Record<string, string>;
 
 /* ==========================================================================
    Stored manifest

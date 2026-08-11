@@ -18,18 +18,16 @@ export function isAdminConfigured(): boolean {
   return typeof token === 'string' && token.length >= minTokenLength;
 }
 
-export function isAuthorisedAdmin(request: Request): boolean {
+/** Constant-time comparison of a submitted password against the configured one. */
+export function isCorrectPassword(candidate: string): boolean {
   const expected = process.env.ADMIN_MEDIA_TOKEN;
   if (!isAdminConfigured() || !expected) return false;
 
-  const header = request.headers.get('authorization');
-  if (!header?.startsWith('Bearer ')) return false;
-
-  const provided = Buffer.from(header.slice('Bearer '.length));
+  const provided = Buffer.from(candidate);
   const secret = Buffer.from(expected);
 
   // timingSafeEqual throws on a length mismatch, and the length of a rejected
-  // token is not worth protecting.
+  // password is not worth protecting.
   if (provided.length !== secret.length) return false;
 
   return timingSafeEqual(provided, secret);

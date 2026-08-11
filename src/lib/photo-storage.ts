@@ -17,7 +17,7 @@ import { photoManifestSchema, type ManagedPhoto, type PhotoManifest } from './ph
 
 export type StorageResult<T> =
   | { ok: true; data: T }
-  | { ok: false; reason: 'storage-not-configured' | 'storage-error' };
+  | { ok: false; reason: 'storage-not-configured' | 'storage-error' | 'not-found' };
 
 /**
  * Vercel injects `BLOB_READ_WRITE_TOKEN` when a Blob store is connected to the
@@ -187,6 +187,40 @@ export async function reorderPhotos(
   ordered.push(...remaining.values());
 
   return writeManifest(slug, { version: 1, items: ordered });
+}
+
+/**
+ * Change what a stored photo says — alt text and caption only.
+ *
+ * The photo keeps its place in the running order and its pin state; only the
+ * words change, so a typo no longer means deleting and re-uploading.
+ */
+export async function updatePhotoText(
+  slug: string,
+  id: string,
+  text: Pick<ManagedPhoto, 'altText' | 'altTextZh' | 'caption'>,
+): Promise<StorageResult<ManagedPhoto>> {
+  if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
+
+  const current = await readManifest(slug, { fresh: true });
+  const target = current.items.find((item) => item.id === id);
+  if (!target) return { ok: false, reason: 'not-found' };
+
+  const updated: ManagedPhoto = {
+    ...target,
+    altText: text.altText,
+    altTextZh: text.altTextZh,
+    caption: text.caption,
+  };
+
+  const written = await writeManifest(slug, {
+    version: 1,
+    items: current.items.map((item) => (item.id === id ? updated : item)),
+  });
+
+  if (!written.ok) return written;
+
+  return { ok: true, data: updated };
 }
 
 /** Remove a photo from the manifest, then from storage. */
