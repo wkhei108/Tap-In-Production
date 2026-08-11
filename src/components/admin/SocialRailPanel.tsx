@@ -115,7 +115,9 @@ function PostCard({ post }: { post: SocialPost }) {
       return;
     }
 
-    if (preview && file) setImage(preview);
+    /* Take the stored URL from the response: the local object URL is revoked
+       on the next line, so showing it would leave a broken picture. */
+    if (body.post?.image) setImage(body.post.image);
     discardPreview();
     setStatus('Published.');
   }

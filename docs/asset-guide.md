@@ -5,15 +5,18 @@ photography, video and artwork.
 
 Nothing in this site depends on an asset existing. Every image slot renders
 through `MediaFrame`, which draws a branded panel at the correct aspect ratio
-and prints the file path it is waiting for. Adding an asset is always the same
-two steps: **drop the file in the right folder, set the path in the content
-file.**
+until something is supplied.
 
-> **Case-study photos can also be added without a deploy.** Once a Vercel Blob
-> store is connected, `/admin/media` uploads straight into a project's gallery,
-> applies the sizes below for you, and lets you reorder or pin what you have
-> added. See README → Media. Everything else on this page — covers, hero,
-> service and social imagery — still goes through the repo.
+> **Almost everything here is now uploaded, not committed.** With a Vercel Blob
+> store connected, the admin at `/admin` handles campaign covers and galleries,
+> the homepage hero, the images on Home / About / Build a Club / Build a Game,
+> the Instagram rail, and the logo, app mark, favicon and share image. Uploads
+> are cropped to the sizes below and stripped of location data automatically.
+> Nothing on this page needs a deploy unless you are adding a *new* slot rather
+> than filling an existing one.
+>
+> The paths below still describe what ships in the repo, which is what the site
+> falls back to when a slot has never been filled.
 
 ---
 
@@ -153,13 +156,21 @@ gallery: [
 />
 ```
 
-**The Instagram rail** — `src/content/social.ts`: set `image` to the exported
-frame and `href` to the post URL. Export from the original file; do not
-screenshot the Instagram interface, and do not scrape.
+**The Instagram rail** — Admin → Home → Instagram rail. Upload the exported
+frame and paste the post URL. Export from the original file; do not screenshot
+the Instagram interface, and do not scrape. `src/content/social.ts` still
+defines how many cards there are and what they say before anyone edits them.
 
-**Service section images** — no code change needed. Save the file at the path
-printed on the placeholder and it appears, because `ServiceSections` derives
-the path from the service `id`.
+**Service section images** — Admin → Build a Club / Build a Game. Each service
+has its own slot, derived from its `id`, so adding a service in
+`src/content/services.ts` brings a slot with it.
+
+**Home and About images** — Admin → Home / About.
+
+**Copy** — every heading, paragraph, button label and caption on the site is
+editable under the matching admin screen, in both languages. Editing there
+overlays `src/content/`; anything left alone keeps coming from the repo, so a
+copy fix shipped in code still reaches every field nobody has touched.
 
 ---
 
@@ -177,14 +188,16 @@ Every image needs alt text in **both languages** (`altText` and `altTextZh`).
 
 ## The logo
 
-`public/brand/tap-in-logo.svg` is a **temporary** wordmark set in a condensed
-system typeface. It has not been traced from a screenshot, which would be both
-inaccurate and a poor basis for print.
+Until a logo is supplied the header and footer set the name in the display
+face rather than tracing a screenshot, which would be both inaccurate and a
+poor basis for print.
 
-When the real vector arrives, replace that file like for like, and update
-`src/components/brand/Wordmark.tsx` to render it (currently it sets the name as
-text). `public/brand/tap-in-mark.svg` — the pitch-motif square used for the
-favicon and web manifest — can stay or be replaced with the official mark.
+When the real vector arrives, upload it under Admin → Settings → Brand and it
+takes over immediately — `Wordmark` renders it in place of the text, sized by
+the same text classes. The app mark, favicon and share image are uploaded in
+the same place. `public/brand/*.svg` stays as the fallback for a deployment
+with no Blob store, and can be replaced like for like if you would rather ship
+the artwork in the repo.
 
 ## Client logos
 

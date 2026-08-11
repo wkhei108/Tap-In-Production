@@ -94,7 +94,10 @@ export default function CopyEditor({ namespace, fields, stored, storageConfigure
       .map((group) => ({
         ...group,
         items: group.items.filter((field) => {
-          const entry = values[field.path];
+          /* Matched against the copy as loaded, not as being typed: filtering
+             on the live value would pull a field out from under the cursor
+             the moment an edit stopped matching the search. */
+          const entry = initial[field.path];
           const haystack = [
             field.path,
             labelForField(field.path),
@@ -107,7 +110,7 @@ export default function CopyEditor({ namespace, fields, stored, storageConfigure
         }),
       }))
       .filter((group) => group.items.length > 0);
-  }, [groups, needle, values]);
+  }, [groups, needle, initial]);
 
   const dirtyPaths = useMemo(
     () =>

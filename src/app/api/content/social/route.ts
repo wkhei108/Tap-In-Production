@@ -5,7 +5,8 @@ import { uploadProcessedImage } from '@/lib/admin-upload';
 import { socialPostTextSchema, type SocialPostRecord } from '@/lib/campaign-schema';
 import { toPhotoFieldErrors } from '@/lib/photo-schema';
 import { isPhotoStorageConfigured } from '@/lib/photo-storage';
-import { clearSocialPostImage, resolveSocialPosts, setSocialPost } from '@/lib/site-content';
+import { clearSocialPostImage, mergeSocialPosts, resolveSocialPosts, setSocialPost } from '@/lib/site-content';
+import { readSiteIndex } from '@/lib/campaigns';
 import { socialPosts } from '@/content/social';
 
 export const runtime = 'nodejs';
@@ -106,7 +107,15 @@ export async function POST(request: Request) {
 
   refreshEditorScreen('home');
 
-  return NextResponse.json({ ok: true, id: values.id });
+  /* Return the merged card: the client has only a local object URL for the
+     file it just picked, and that is about to be revoked. */
+  const posts = mergeSocialPosts(await readSiteIndex({ fresh: true }));
+
+  return NextResponse.json({
+    ok: true,
+    id: values.id,
+    post: posts.find((post) => post.id === values.id) ?? null,
+  });
 }
 
 /** Drop a card's image, keeping its link and words. */
