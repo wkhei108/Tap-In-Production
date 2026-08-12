@@ -109,9 +109,20 @@ export function refreshEditorScreen(namespace: string): void {
  * leave stale copy somewhere.
  */
 export function refreshEverything(): void {
-  /* Purge each locale's layout rather than listing routes: the header and
-     footer render inside it, so a case study — whose path carries a slug and
-     can never appear in a fixed list — would otherwise keep the old logo or
-     the old navigation until its own revalidate window expired. */
-  for (const locale of locales) revalidatePath(`/${locale}`, 'layout');
+  /* One call, using the route *pattern* rather than a resolved path.
+   *
+   * `revalidatePath(path, 'layout')` matches against the file structure —
+   * `app/[locale]/layout.tsx` is registered as the pattern `/[locale]`, the
+   * literal brackets included, exactly as Next's own docs show for bulk
+   * invalidation (`revalidatePath('/blog/[slug]', 'layout')`). Passing a
+   * *resolved* value instead, `revalidatePath('/en', 'layout')`, does not
+   * match that registration, so the call silently did nothing: the site kept
+   * serving the previous logo and copy indefinitely, edit after edit, because
+   * every "publish" was invalidating a path nothing was ever cached under.
+   *
+   * The pattern covers every locale in one call — the header and footer
+   * render inside this layout, so a case study, whose path carries a slug and
+   * can never appear in a fixed list, is covered too.
+   */
+  revalidatePath('/[locale]', 'layout');
 }
