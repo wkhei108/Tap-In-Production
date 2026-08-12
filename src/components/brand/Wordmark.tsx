@@ -8,17 +8,20 @@ import { site } from '@/content/site';
  * traced from a low-resolution screenshot. Upload one under Settings → Brand
  * and it takes over here.
  *
- * Uploaded artwork is sized by its own height class rather than by the text
- * size: a logo file usually carries its own padding inside the viewBox, so
- * matching it to the cap height of the text leaves it looking far smaller
- * than the words it replaced.
+ * Uploaded artwork is trimmed of transparent padding on upload (see
+ * `trimTransparentEdges`), so its own bounding box is close to its visible
+ * ink — which is what makes a height class here a fair comparison to the
+ * text it replaces. The call sites measure the text wordmark's actual
+ * rendered cap height (Barlow Condensed Bold caps run ~72% of font-size) and
+ * pass that back in as `logoClassName`, so an uploaded logo reads at the same
+ * size as the words it stands in for, not a guessed one.
  */
 export default function Wordmark({
   className,
   tone = 'lime',
   logoUrl,
   name,
-  logoClassName = 'h-9',
+  logoClassName = 'h-5 md:h-6',
 }: {
   className?: string;
   tone?: 'lime' | 'bone' | 'ink';
