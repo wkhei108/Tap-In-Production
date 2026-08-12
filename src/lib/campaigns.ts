@@ -11,7 +11,12 @@ import {
   type HeroRecord,
   type SiteIndex,
 } from './campaign-schema';
-import { findBlobUrl, isPhotoStorageConfigured, type StorageResult } from './photo-storage';
+import {
+  findBlobUrl,
+  isPhotoStorageConfigured,
+  rememberBlobUrl,
+  type StorageResult,
+} from './photo-storage';
 import {
   projectCategories,
   projects,
@@ -91,13 +96,18 @@ export async function writeSiteIndex(index: SiteIndex): Promise<StorageResult<Si
   if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
 
   try {
-    await put(indexPath, JSON.stringify(index), {
+    const blob = await put(indexPath, JSON.stringify(index), {
       access: 'public',
       contentType: 'application/json',
       addRandomSuffix: false,
       allowOverwrite: true,
       cacheControlMaxAge: 60,
     });
+
+    /* The admin reads this document again on the very next request; the write
+       already knows where it landed, so that read needs no lookup. */
+    rememberBlobUrl(indexPath, blob.url);
+
     return { ok: true, data: index };
   } catch (error) {
     console.error('[TAP IN.] Could not write the campaign index:', error);
@@ -246,17 +256,20 @@ export async function setCampaignCover(
  * the gallery is left alone, because that photo is still in the gallery.
  */
 export async function clearCampaignCover(slug: string): Promise<StorageResult<SiteIndex>> {
-  const current = await readSiteIndex({ fresh: true });
-  const existing = current.campaigns[slug]?.cover;
+  if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
 
-  const written = await mutateSiteIndex((index) => {
-    const record = index.campaigns[slug];
-    if (!record) return index;
-    const { cover: _dropped, ...rest } = record;
-    return {
-      ...index,
-      campaigns: { ...index.campaigns, [slug]: campaignRecordSchema.parse(rest) },
-    };
+  /* One read serves both jobs — finding the outgoing cover, and being the
+     document that gets written back. Reading once for each was two round
+     trips for a single edit. */
+  const current = await readSiteIndex({ fresh: true });
+  const record = current.campaigns[slug];
+  const existing = record?.cover;
+  if (!record) return { ok: true, data: current };
+
+  const { cover: _dropped, ...rest } = record;
+  const written = await writeSiteIndex({
+    ...current,
+    campaigns: { ...current.campaigns, [slug]: campaignRecordSchema.parse(rest) },
   });
 
   if (written.ok && existing && !existing.fromPhotoId) {
@@ -411,13 +424,15 @@ export async function setHero(hero: HeroRecord): Promise<StorageResult<SiteIndex
 
 /** Remove the hero, and the files behind it — nothing else references them. */
 export async function clearHero(): Promise<StorageResult<SiteIndex>> {
+  if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
+
+  /* As with the cover: the read that finds the outgoing files is the same
+     read that produces the document to write back. */
   const current = await readSiteIndex({ fresh: true });
   const existing = current.hero;
 
-  const written = await mutateSiteIndex((index) => {
-    const { hero: _dropped, ...rest } = index;
-    return rest as SiteIndex;
-  });
+  const { hero: _dropped, ...rest } = current;
+  const written = await writeSiteIndex(rest as SiteIndex);
 
   if (written.ok && existing) {
     await del(existing.posterUrl).catch(() => {});

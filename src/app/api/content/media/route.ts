@@ -8,6 +8,7 @@ import { historyKey, readHistory } from '@/lib/media-history';
 import { toPhotoFieldErrors } from '@/lib/photo-schema';
 import { isPhotoStorageConfigured } from '@/lib/photo-storage';
 import { clearPageMediaSlot, resolvePageMedia, setPageMediaSlot } from '@/lib/site-content';
+import { readSiteIndex } from '@/lib/campaigns';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,7 +32,8 @@ export async function GET(request: Request) {
   return NextResponse.json({
     ok: true,
     storageConfigured: isPhotoStorageConfigured(),
-    media: await resolvePageMedia(),
+    /* The admin reloads this straight after saving; it has to see the save. */
+    media: await resolvePageMedia(await readSiteIndex({ fresh: true })),
   });
 }
 
@@ -79,7 +81,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'unknown-slot' }, { status: 400 });
   }
 
-  const existing = (await resolvePageMedia())[values.slot];
+  /* Fresh: this decides whether a text-only save keeps the current image, so
+     a stale read here would write back a superseded URL and silently revert a
+     photo uploaded moments ago. */
+  const existing = (await resolvePageMedia(await readSiteIndex({ fresh: true })))[values.slot];
 
   const file = form.get('image');
   let url = existing?.url;

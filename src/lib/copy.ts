@@ -15,7 +15,12 @@ import {
   type CopySnapshot,
   type CopyValues,
 } from './copy-schema';
-import { findBlobUrl, isPhotoStorageConfigured, type StorageResult } from './photo-storage';
+import {
+  findBlobUrl,
+  isPhotoStorageConfigured,
+  rememberBlobUrl,
+  type StorageResult,
+} from './photo-storage';
 import type { Locale } from './i18n';
 import { en } from '@/content/en';
 import { zhHK } from '@/content/zh-hk';
@@ -102,13 +107,16 @@ export async function writeCopyOverlay(overlay: CopyOverlay): Promise<StorageRes
   if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
 
   try {
-    await put(overlayPath, JSON.stringify(overlay), {
+    const blob = await put(overlayPath, JSON.stringify(overlay), {
       access: 'public',
       contentType: 'application/json',
       addRandomSuffix: false,
       allowOverwrite: true,
       cacheControlMaxAge: 60,
     });
+
+    rememberBlobUrl(overlayPath, blob.url);
+
     return { ok: true, data: overlay };
   } catch (error) {
     console.error('[TAP IN.] Could not write the copy overlay:', error);
