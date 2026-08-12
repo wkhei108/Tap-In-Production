@@ -199,7 +199,7 @@ const brandAssets: Array<{ kind: BrandAssetKind; label: string; hint: string }> 
   {
     kind: 'logo',
     label: 'Logo',
-    hint: 'Replaces the text wordmark in the header and footer. Transparent padding around the artwork is trimmed on upload, so it is not rendered as a sliver. SVG keeps its edges.',
+    hint: 'A wide lockup works best — roughly 6:1 to 8:1, width to height. SVG keeps its edges; a PNG should be cropped close to the artwork, though transparent padding is trimmed automatically. Replaces the text wordmark in the header and footer.',
   },
   {
     kind: 'mark',
