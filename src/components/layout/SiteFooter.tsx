@@ -39,6 +39,7 @@ export default async function SiteFooter({ locale }: { locale: Locale }) {
           <div className="md:col-span-5">
             <Wordmark
               className="text-display-md"
+              logoClassName="h-12 md:h-14"
               logoUrl={brand.logoUrl}
               name={site.name}
             />
