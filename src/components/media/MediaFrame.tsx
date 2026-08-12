@@ -16,8 +16,6 @@ type Props = {
   note?: string;
   /** Copy for the placeholder state, supplied by the active dictionary. */
   placeholderLabel?: string;
-  /** Expected file path, printed in the placeholder to speed up asset drops. */
-  expectedPath?: string;
   /** Scale the image slightly on hover of an ancestor `.group`. */
   hoverZoom?: boolean;
   children?: React.ReactNode;
@@ -48,7 +46,6 @@ export default function MediaFrame({
   tone = 'neutral',
   note,
   placeholderLabel,
-  expectedPath,
   hoverZoom = false,
   children,
 }: Props) {
@@ -92,11 +89,6 @@ export default function MediaFrame({
             <span className="display text-display-sm text-bone/25">TAP IN.</span>
             {placeholderLabel ? (
               <span className="meta text-mute/70">{placeholderLabel}</span>
-            ) : null}
-            {expectedPath ? (
-              <code className="block w-full truncate font-mono text-[0.62rem] text-mute/45">
-                {expectedPath}
-              </code>
             ) : null}
           </div>
         </div>

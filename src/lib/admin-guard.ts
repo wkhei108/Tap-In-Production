@@ -6,7 +6,7 @@ import { readCookie, sessionCookieName, verifySessionValue } from './admin-sessi
 import { clientKey, createRateLimiter } from './rate-limit';
 import { readSiteIndex } from './campaigns';
 import { projects } from '@/content/projects';
-import { routes, type RouteKey } from '@/content/site';
+import type { RouteKey } from '@/content/site';
 import { locales, pathFor } from './i18n';
 
 /* ==========================================================================
@@ -109,10 +109,9 @@ export function refreshEditorScreen(namespace: string): void {
  * leave stale copy somewhere.
  */
 export function refreshEverything(): void {
-  for (const locale of locales) {
-    for (const route of Object.keys(routes) as RouteKey[]) {
-      revalidatePath(pathFor(locale, route));
-    }
-  }
-  refreshCampaignListings();
+  /* Purge each locale's layout rather than listing routes: the header and
+     footer render inside it, so a case study — whose path carries a slug and
+     can never appear in a fixed list — would otherwise keep the old logo or
+     the old navigation until its own revalidate window expired. */
+  for (const locale of locales) revalidatePath(`/${locale}`, 'layout');
 }

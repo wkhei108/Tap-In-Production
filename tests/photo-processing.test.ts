@@ -1,6 +1,13 @@
 // @vitest-environment node
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
+
+/**
+ * Encoding several full-size images per test runs close to the 5s default
+ * when the suite is running in parallel on a small machine, which showed up
+ * as intermittent timeouts rather than real failures.
+ */
+const encodingTimeout = 30_000;
 import { heroPosterTarget, normaliseImage, normalisePhoto } from '@/lib/photo-processing';
 import { aspectTargets, photoAspects } from '@/lib/photo-schema';
 
@@ -34,7 +41,7 @@ describe('normalisePhoto', () => {
         expect(ratioOf(output)).toBeCloseTo(ratioOf(aspectTargets[aspect]), 2);
       }
     }
-  });
+  }, encodingTimeout);
 
   it('applies EXIF orientation instead of leaving the photo sideways', async () => {
     // Orientation 6 means "rotate 90°", so a 1200x900 file is really 900x1200.
@@ -43,7 +50,7 @@ describe('normalisePhoto', () => {
     expect(ratioOf(output)).toBeCloseTo(0.75, 2);
     // 900px of true width is the constraint; a landscape reading would allow more.
     expect(output.width).toBeLessThanOrEqual(900);
-  });
+  }, encodingTimeout);
 
   it('strips metadata, so uploaded photos cannot leak GPS coordinates', async () => {
     const output = await normalisePhoto(await testPhoto(2400, 1600), 'landscape');
@@ -51,25 +58,25 @@ describe('normalisePhoto', () => {
 
     expect(metadata.exif).toBeUndefined();
     expect(metadata.format).toBe('webp');
-  });
+  }, encodingTimeout);
 
   it('never upscales a photo smaller than the target', async () => {
     const output = await normalisePhoto(await testPhoto(800, 500), 'landscape');
 
     expect(output.width).toBeLessThanOrEqual(800);
     expect(output.width).toBeLessThan(aspectTargets.landscape.width);
-  });
+  }, encodingTimeout);
 
   it('resizes a large photo down to the documented target', async () => {
     const output = await normalisePhoto(await testPhoto(6000, 4000), 'landscape');
 
     expect(output.width).toBe(aspectTargets.landscape.width);
     expect(output.height).toBe(aspectTargets.landscape.height);
-  });
+  }, encodingTimeout);
 
   it('rejects a file that is not an image', async () => {
     await expect(normalisePhoto(Buffer.from('not an image'), 'square')).rejects.toThrow();
-  });
+  }, encodingTimeout);
 });
 
 describe('normaliseImage / hero poster', () => {
@@ -79,18 +86,18 @@ describe('normaliseImage / hero poster', () => {
     expect(output.width).toBe(heroPosterTarget.width);
     expect(output.height).toBe(heroPosterTarget.height);
     expect(output.width / output.height).toBeCloseTo(16 / 9, 2);
-  });
+  }, encodingTimeout);
 
   it('keeps the hero ratio without upscaling a small source', async () => {
     const output = await normaliseImage(await testPhoto(800, 600), heroPosterTarget);
 
     expect(output.width).toBeLessThanOrEqual(800);
     expect(output.width / output.height).toBeCloseTo(16 / 9, 2);
-  });
+  }, encodingTimeout);
 
   it('strips metadata from a hero poster too', async () => {
     const output = await normaliseImage(await testPhoto(3000, 2000), heroPosterTarget);
     const metadata = await sharp(output.body).metadata();
     expect(metadata.exif).toBeUndefined();
-  });
+  }, encodingTimeout);
 });

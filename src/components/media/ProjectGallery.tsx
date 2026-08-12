@@ -76,7 +76,6 @@ export default function ProjectGallery({ items, locale, slug, labels }: Props) {
                   sizes="(min-width: 768px) 50vw, 100vw"
                   hoverZoom
                   placeholderLabel={labels.mediaPending}
-                  expectedPath={`/media/projects/${slug}/gallery-${String(index + 1).padStart(2, '0')}.webp`}
                   note={item.caption ? item.caption[locale] : undefined}
                 />
               </button>

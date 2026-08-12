@@ -43,7 +43,6 @@ export default async function ProjectCard({
         priority={priority}
         hoverZoom
         placeholderLabel={dict.common.mediaPending}
-        expectedPath={`/media/projects/${project.slug}/cover.webp`}
       />
 
       <div className="mt-4 flex flex-col gap-2">

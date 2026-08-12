@@ -165,7 +165,6 @@ export default async function ProjectPage({
             sizes="100vw"
             priority
             placeholderLabel={dict.common.mediaPending}
-            expectedPath={`/media/projects/${project.slug}/cover.webp`}
           />
         </div>
       </section>

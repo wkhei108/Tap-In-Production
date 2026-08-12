@@ -45,6 +45,7 @@ export default async function SiteHeader({ locale }: { locale: Locale }) {
         >
           <Wordmark
             className="text-2xl md:text-[1.7rem]"
+            logoClassName="h-8 md:h-10"
             logoUrl={brand.logoUrl}
             name={site.name}
           />

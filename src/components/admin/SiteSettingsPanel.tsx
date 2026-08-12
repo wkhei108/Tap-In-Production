@@ -332,16 +332,11 @@ function BrandAssetCard({
         <p className="mt-0.5 text-[0.65rem] text-mute/60">{asset.hint}</p>
       </div>
 
-      <div className="grid h-24 place-items-center rounded-xs border border-line bg-ink p-3">
+      {/* `fill` inside a fixed, clipped box: a wide lockup used to keep its
+          own width here and spill out over the rest of the card. */}
+      <div className="relative grid h-24 place-items-center overflow-hidden rounded-xs border border-line bg-ink">
         {url ? (
-          <Image
-            src={url}
-            alt=""
-            width={160}
-            height={80}
-            unoptimized
-            className="max-h-full w-auto object-contain"
-          />
+          <Image src={url} alt="" fill unoptimized sizes="320px" className="object-contain p-3" />
         ) : (
           <span className="text-[0.65rem] text-mute/40">Using the built-in artwork</span>
         )}

@@ -50,15 +50,13 @@ describe('MediaFrame', () => {
     expect(panel).toBeTruthy();
   });
 
-  it('shows the expected file path to speed up asset replacement', () => {
-    render(
-      <MediaFrame
-        alt="Cover"
-        expectedPath="/media/projects/demo/cover.webp"
-        placeholderLabel="Media pending"
-      />,
-    );
-    expect(screen.getByText('/media/projects/demo/cover.webp')).toBeTruthy();
+  it('labels the placeholder without pointing at a file path', () => {
+    /* Media is uploaded through the admin now, so printing a `/public` path
+       told the operator to do something that would not work. */
+    const { container } = render(<MediaFrame alt="Cover" placeholderLabel="Media pending" />);
+
+    expect(screen.getByText('Media pending')).toBeTruthy();
+    expect(container.querySelector('code')).toBeNull();
   });
 
   it('renders an image when the asset exists', () => {
