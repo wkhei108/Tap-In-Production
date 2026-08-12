@@ -152,7 +152,14 @@ export async function POST(request: Request) {
           label: 'share image',
           target: ogImageTarget,
         })
-      : await uploadBrandAsset({ file, prefix: `media/brand/${kind}`, label: kind });
+      : await uploadBrandAsset({
+          file,
+          prefix: `media/brand/${kind}`,
+          label: kind,
+          /* The wordmark sits inline beside navigation, so its canvas padding
+             has to go. The app mark and favicon keep theirs. */
+          trimPadding: kind === 'logo',
+        });
 
   if (!upload.ok) return upload.response;
 
