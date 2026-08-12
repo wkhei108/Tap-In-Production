@@ -5,7 +5,9 @@ import { useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 
 import { adminCard, adminField, adminGhostButton, adminLabel, adminPrimaryButton } from './admin-ui';
+import MediaVersions from './MediaVersions';
 import { acceptedUploadTypes } from '@/lib/photo-schema';
+import type { MediaVersion } from '@/lib/campaign-schema';
 import type { SocialPost } from '@/content/social';
 
 /* ==========================================================================
@@ -25,9 +27,12 @@ const previewRatio: Record<string, string> = {
 
 export default function SocialRailPanel({
   initialPosts,
+  initialHistory,
   storageConfigured,
 }: {
   initialPosts: SocialPost[];
+  /** Previous versions per card, keyed `social:<id>`. */
+  initialHistory: Record<string, MediaVersion[]>;
   storageConfigured: boolean;
 }) {
   if (!storageConfigured) {
@@ -56,7 +61,11 @@ export default function SocialRailPanel({
 
       <div className="grid gap-3 md:grid-cols-2">
         {initialPosts.map((post) => (
-          <PostCard key={post.id} post={post} />
+          <PostCard
+            key={post.id}
+            post={post}
+            initialVersions={initialHistory[`social:${post.id}`] ?? []}
+          />
         ))}
       </div>
     </section>
@@ -65,7 +74,13 @@ export default function SocialRailPanel({
 
 /* -------------------------------------------------------------------------- */
 
-function PostCard({ post }: { post: SocialPost }) {
+function PostCard({
+  post,
+  initialVersions,
+}: {
+  post: SocialPost;
+  initialVersions: MediaVersion[];
+}) {
   const [image, setImage] = useState(post.image);
   const [href, setHref] = useState(post.href);
   const [altText, setAltText] = useState(post.altText);
@@ -76,6 +91,7 @@ function PostCard({ post }: { post: SocialPost }) {
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [versions, setVersions] = useState(initialVersions);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const canSave = altText.trim() !== '' && altTextZh.trim() !== '';
@@ -118,6 +134,7 @@ function PostCard({ post }: { post: SocialPost }) {
     /* Take the stored URL from the response: the local object URL is revoked
        on the next line, so showing it would leave a broken picture. */
     if (body.post?.image) setImage(body.post.image);
+    if (body.versions) setVersions(body.versions);
     discardPreview();
     setStatus('Published.');
   }
@@ -140,7 +157,8 @@ function PostCard({ post }: { post: SocialPost }) {
 
     discardPreview();
     setImage(undefined);
-    setStatus('Image removed.');
+    if (body.versions) setVersions(body.versions);
+    setStatus('Image removed — you can put it back below.');
   }
 
   return (
@@ -277,6 +295,24 @@ function PostCard({ post }: { post: SocialPost }) {
         <p aria-live="polite" className="text-sm text-mute empty:hidden">
           {status}
         </p>
+
+        <MediaVersions
+          historyKey={`social:${post.id}`}
+          versions={versions}
+          fallbackAspect={post.aspect}
+          disabled={busy}
+          onRestored={(body) => {
+            setVersions(body.versions);
+            const restored = body.post as SocialPost | null;
+            if (restored) {
+              setImage(restored.image);
+              setAltText(restored.altText);
+              setAltTextZh(restored.altTextZh);
+              setHref(restored.href);
+            }
+            setStatus('Restored.');
+          }}
+        />
       </div>
     </div>
   );

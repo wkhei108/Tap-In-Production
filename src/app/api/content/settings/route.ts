@@ -9,6 +9,7 @@ import {
 } from '@/lib/campaign-schema';
 import { toPhotoFieldErrors } from '@/lib/photo-schema';
 import { isPhotoStorageConfigured } from '@/lib/photo-storage';
+import { historyKey, readHistory } from '@/lib/media-history';
 import {
   clearBrandAsset,
   resolveBrand,
@@ -162,7 +163,12 @@ export async function POST(request: Request) {
 
   refreshEverything();
 
-  return NextResponse.json({ ok: true, kind, brand: await resolveBrand() });
+  return NextResponse.json({
+    ok: true,
+    kind,
+    brand: await resolveBrand(result.data),
+    versions: readHistory(result.data, historyKey('brand', kind)),
+  });
 }
 
 /** Remove a piece of artwork; what ships in `public/brand` takes over again. */
@@ -189,5 +195,10 @@ export async function DELETE(request: Request) {
 
   refreshEverything();
 
-  return NextResponse.json({ ok: true, kind: parsed.data.kind, brand: await resolveBrand() });
+  return NextResponse.json({
+    ok: true,
+    kind: parsed.data.kind,
+    brand: await resolveBrand(result.data),
+    versions: readHistory(result.data, historyKey('brand', parsed.data.kind)),
+  });
 }

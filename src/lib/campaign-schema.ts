@@ -164,6 +164,36 @@ export const siteSettingsSchema = z.object({
 
 export type SiteSettingsRecord = z.infer<typeof siteSettingsSchema>;
 
+/* ==========================================================================
+   Media history
+
+   Replacing an image used to delete the file it replaced, which made an
+   upload a one-way door: picking the wrong file lost the right one. The
+   outgoing version is kept here instead, so it can be put back.
+
+   One log for every kind of image, keyed `page:<slot>`, `social:<id>` or
+   `brand:<kind>`, newest first. Only the oldest version past the cap is
+   actually deleted.
+   ========================================================================== */
+
+export const mediaVersionSchema = z.object({
+  id: z.string(),
+  url: z.string().url(),
+  aspect: z.enum(photoAspects).optional(),
+  altText: z.string().optional(),
+  altTextZh: z.string().optional(),
+  caption: localisedSchema.optional(),
+  /** Social cards carry their link with them. */
+  href: z.string().optional(),
+  replacedAt: z.string(),
+  /** Why it stopped being current — shown so the list reads as a history. */
+  reason: z.enum(['replaced', 'removed']).default('replaced'),
+});
+
+export type MediaVersion = z.infer<typeof mediaVersionSchema>;
+
+export const mediaHistorySchema = z.record(z.string(), z.array(mediaVersionSchema));
+
 export const siteIndexSchema = z.object({
   version: z.literal(1),
   campaigns: z.record(z.string(), campaignRecordSchema),
@@ -175,6 +205,7 @@ export const siteIndexSchema = z.object({
   socialPosts: socialPostMapSchema.optional(),
   brand: brandAssetsSchema.optional(),
   settings: siteSettingsSchema.optional(),
+  mediaHistory: mediaHistorySchema.optional(),
 });
 
 export type SiteIndex = z.infer<typeof siteIndexSchema>;

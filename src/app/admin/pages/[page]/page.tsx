@@ -7,7 +7,7 @@ import MediaSlotPanel from '@/components/admin/MediaSlotPanel';
 import SocialRailPanel from '@/components/admin/SocialRailPanel';
 import { sessionCookieName, verifySessionValue } from '@/lib/admin-session';
 import { adminScreenFor } from '@/lib/admin-screens';
-import { copyFieldsFor, copyValuesFor, readCopyOverlay } from '@/lib/copy';
+import { copyFieldsFor, copyHistoryFor, copyValuesFor, readCopyOverlay } from '@/lib/copy';
 import { mediaSlotsFor } from '@/lib/media-slots';
 import { readSiteIndex } from '@/lib/campaigns';
 import { mergeSocialPosts } from '@/lib/site-content';
@@ -50,6 +50,9 @@ export default async function AdminPageEditor({
   const values = copyValuesFor(overlay, screen.namespace);
   const slots = screen.mediaGroup ? mediaSlotsFor(screen.mediaGroup) : [];
 
+  /* Previous versions of every image, so each card can offer them back. */
+  const mediaHistory = index.mediaHistory ?? {};
+
   return (
     <div className="min-h-svh">
       <AdminChrome title={screen.label} current={screen.href} blurb={screen.blurb} />
@@ -65,6 +68,7 @@ export default async function AdminPageEditor({
           <MediaSlotPanel
             slots={slots}
             initialMedia={index.pageMedia ?? {}}
+            initialHistory={mediaHistory}
             storageConfigured={storageConfigured}
           />
         ) : null}
@@ -72,6 +76,7 @@ export default async function AdminPageEditor({
         {screen.namespace === 'home' ? (
           <SocialRailPanel
             initialPosts={mergeSocialPosts(index)}
+            initialHistory={mediaHistory}
             storageConfigured={storageConfigured}
           />
         ) : null}
@@ -80,6 +85,7 @@ export default async function AdminPageEditor({
           namespace={screen.namespace}
           fields={fields}
           stored={{ en: values.en, zh: values['zh-hk'] }}
+          snapshots={copyHistoryFor(overlay, screen.namespace)}
           storageConfigured={storageConfigured}
         />
       </main>

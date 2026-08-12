@@ -41,12 +41,37 @@ export type CopyValues = z.infer<typeof copyValuesSchema>;
  * cast. Both locale buckets default to `{}` so an overlay written before a
  * locale existed still parses.
  */
+/**
+ * What one screen's copy looked like before a publish.
+ *
+ * Stored per screen so an editor can put back the wording they just changed
+ * without hunting for it. Sparse like the overlay itself, so a snapshot is
+ * only as big as the edits that existed at the time.
+ */
+export const copySnapshotSchema = z.object({
+  id: z.string(),
+  savedAt: z.string(),
+  /** Which paths that publish touched, for the summary line. */
+  changed: z.array(z.string()).max(1200).default([]),
+  values: z.object({
+    en: copyValuesSchema.default({}),
+    'zh-hk': copyValuesSchema.default({}),
+  }),
+});
+
+export type CopySnapshot = z.infer<typeof copySnapshotSchema>;
+
+/** How many publishes back you can go, per screen. */
+export const copyHistoryLimit = 10;
+
 export const copyOverlaySchema = z.object({
   version: z.literal(1),
   values: z.object({
     en: copyValuesSchema.default({}),
     'zh-hk': copyValuesSchema.default({}),
   }),
+  /* Optional, so an overlay written before history existed still parses. */
+  history: z.record(z.string(), z.array(copySnapshotSchema)).optional(),
 });
 
 export type CopyOverlay = z.infer<typeof copyOverlaySchema>;

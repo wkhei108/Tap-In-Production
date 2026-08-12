@@ -17,6 +17,10 @@ until something is supplied.
 >
 > The paths below still describe what ships in the repo, which is what the site
 > falls back to when a slot has never been filled.
+>
+> **Uploads are reversible.** Replacing or removing an image files the old one
+> under "Previous versions" on the same card, six deep, so the wrong file is
+> never a lost file.
 
 ---
 

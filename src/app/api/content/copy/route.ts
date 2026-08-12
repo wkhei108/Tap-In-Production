@@ -2,7 +2,15 @@ import { NextResponse } from 'next/server';
 
 import { guardAdmin, refreshEditorScreen } from '@/lib/admin-guard';
 import { isPhotoStorageConfigured } from '@/lib/photo-storage';
-import { copyFieldFor, copyNamespaceOwns, isCopyNamespace, mutateCopyOverlay } from '@/lib/copy';
+import {
+  copyFieldFor,
+  copyNamespaceOwns,
+  copyHistoryFor,
+  isCopyNamespace,
+  mutateCopyOverlay,
+  pushSnapshot,
+  snapshotOf,
+} from '@/lib/copy';
 import {
   copySaveSchema,
   kindOf,
@@ -102,8 +110,16 @@ export async function POST(request: Request) {
   }
 
   const written = await mutateCopyOverlay((overlay) => {
-    const en: CopyValues = { ...overlay.values.en };
-    const zh: CopyValues = { ...overlay.values['zh-hk'] };
+    /* File what this screen looked like before the change, so the publish
+       can be undone as a whole rather than field by field. */
+    const filed = pushSnapshot(
+      overlay,
+      namespace,
+      snapshotOf(overlay, namespace, changes.map((change) => change.path)),
+    );
+
+    const en: CopyValues = { ...filed.values.en };
+    const zh: CopyValues = { ...filed.values['zh-hk'] };
 
     for (const change of changes) {
       if (change.en === null) delete en[change.path];
@@ -113,7 +129,7 @@ export async function POST(request: Request) {
       else zh[change.path] = change.zh;
     }
 
-    return { ...overlay, values: { en, 'zh-hk': zh } };
+    return { ...filed, values: { en, 'zh-hk': zh } };
   });
 
   if (!written.ok) {
@@ -128,5 +144,7 @@ export async function POST(request: Request) {
     ok: true,
     saved: changes.length,
     changed: changed.map((change) => change.path),
+    /* The editor shows the publish log, so it needs the new head of it. */
+    history: copyHistoryFor(written.data, namespace),
   });
 }
