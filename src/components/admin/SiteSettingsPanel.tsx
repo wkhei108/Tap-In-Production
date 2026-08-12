@@ -199,7 +199,7 @@ const brandAssets: Array<{ kind: BrandAssetKind; label: string; hint: string }> 
   {
     kind: 'logo',
     label: 'Logo',
-    hint: 'Replaces the text wordmark in the header and footer. SVG keeps its edges.',
+    hint: 'Replaces the text wordmark in the header and footer. Transparent padding around the artwork is trimmed on upload, so it is not rendered as a sliver. SVG keeps its edges.',
   },
   {
     kind: 'mark',

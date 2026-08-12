@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { put } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 
-import { normaliseImage, normalisePhoto } from './photo-processing';
+import { normaliseImage, normalisePhoto, trimTransparentEdges } from './photo-processing';
 import {
   acceptedBrandTypes,
   acceptedUploadTypes,
@@ -130,10 +130,17 @@ export async function uploadBrandAsset({
   file,
   prefix,
   label = 'file',
+  trimPadding = false,
 }: {
   file: File;
   prefix: string;
   label?: string;
+  /**
+   * Remove transparent margins. Wanted for a wordmark that sits inline, and
+   * emphatically not for the app mark, whose padding is what keeps it intact
+   * when a launcher masks it into a circle.
+   */
+  trimPadding?: boolean;
 }): Promise<UploadOutcome> {
   if (file.size > maxBrandBytes) return tooLarge(maxBrandBytes, label);
 
@@ -152,14 +159,21 @@ export async function uploadBrandAsset({
             ? 'avif'
             : 'webp';
 
+  /* Vectors are stored untouched — trimming one would mean rasterising it,
+     which is the whole thing an SVG upload is trying to avoid. */
+  let body: Buffer | File = file;
+  if (trimPadding && file.type !== 'image/svg+xml') {
+    body = await trimTransparentEdges(Buffer.from(await file.arrayBuffer()));
+  }
+
   try {
-    const blob = await put(`${prefix}-${randomUUID()}.${extension}`, file, {
+    const blob = await put(`${prefix}-${randomUUID()}.${extension}`, body, {
       access: 'public',
       contentType: file.type,
       addRandomSuffix: false,
       cacheControlMaxAge: 60 * 60 * 24 * 365,
     });
-    return { ok: true, url: blob.url, bytes: file.size };
+    return { ok: true, url: blob.url, bytes: body instanceof File ? body.size : body.byteLength };
   } catch (error) {
     return storageFailed(label, error);
   }

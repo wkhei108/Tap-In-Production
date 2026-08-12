@@ -72,3 +72,32 @@ export async function normaliseImage(
 
   return { body: data, width: info.width, height: info.height, bytes: data.byteLength };
 }
+
+/**
+ * Strip transparent margins from artwork, keeping the original format.
+ *
+ * A logo exported from a design tool usually arrives on a square canvas with
+ * the wordmark floating in the middle. Rendered at a given height, almost all
+ * of that height is empty space — one real upload was a 1254×1254 PNG whose
+ * artwork occupied a 1137×148 band, so a 40px-tall header logo showed a 5px
+ * sliver of lettering. CSS cannot know where the opaque pixels are, so the
+ * padding is removed once, here, on the way in.
+ *
+ * Never throws: artwork that is entirely one colour, or that sharp cannot
+ * read, is stored exactly as supplied.
+ */
+export async function trimTransparentEdges(input: Buffer): Promise<Buffer> {
+  try {
+    const { data, info } = await sharp(input)
+      .trim({ threshold: 1 })
+      .toBuffer({ resolveWithObject: true });
+
+    /* A trim that leaves almost nothing means the threshold ate the artwork;
+       keep what was uploaded rather than publishing a sliver. */
+    if (info.width < 8 || info.height < 8) return input;
+
+    return data;
+  } catch {
+    return input;
+  }
+}

@@ -8,7 +8,12 @@ import { describe, expect, it } from 'vitest';
  * as intermittent timeouts rather than real failures.
  */
 const encodingTimeout = 30_000;
-import { heroPosterTarget, normaliseImage, normalisePhoto } from '@/lib/photo-processing';
+import {
+  heroPosterTarget,
+  normaliseImage,
+  normalisePhoto,
+  trimTransparentEdges,
+} from '@/lib/photo-processing';
 import { aspectTargets, photoAspects } from '@/lib/photo-schema';
 
 /** A solid-colour JPEG carrying EXIF (including a GPS tag) and an orientation. */
@@ -99,5 +104,64 @@ describe('normaliseImage / hero poster', () => {
     const output = await normaliseImage(await testPhoto(3000, 2000), heroPosterTarget);
     const metadata = await sharp(output.body).metadata();
     expect(metadata.exif).toBeUndefined();
+  }, encodingTimeout);
+});
+
+describe('trimTransparentEdges', () => {
+  /** A wide wordmark floating in the middle of a square canvas. */
+  async function paddedLogo() {
+    const glyph = await sharp({
+      create: { width: 600, height: 80, channels: 4, background: { r: 215, g: 255, b: 32, alpha: 1 } },
+    })
+      .png()
+      .toBuffer();
+
+    return sharp({
+      create: { width: 800, height: 800, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    })
+      .composite([{ input: glyph, top: 360, left: 100 }])
+      .png()
+      .toBuffer();
+  }
+
+  it('removes the empty canvas around a wordmark', async () => {
+    const trimmed = await trimTransparentEdges(await paddedLogo());
+    const { width, height } = await sharp(trimmed).metadata();
+
+    expect(width).toBe(600);
+    expect(height).toBe(80);
+  }, encodingTimeout);
+
+  it('keeps the original format, so a PNG stays a PNG', async () => {
+    const trimmed = await trimTransparentEdges(await paddedLogo());
+    expect((await sharp(trimmed).metadata()).format).toBe('png');
+  }, encodingTimeout);
+
+  it('leaves artwork that already fits its canvas alone', async () => {
+    const tight = await sharp({
+      create: { width: 300, height: 100, channels: 4, background: { r: 10, g: 10, b: 10, alpha: 1 } },
+    })
+      .png()
+      .toBuffer();
+
+    const { width, height } = await sharp(await trimTransparentEdges(tight)).metadata();
+    expect(width).toBe(300);
+    expect(height).toBe(100);
+  }, encodingTimeout);
+
+  it('returns the upload untouched rather than throwing on something unreadable', async () => {
+    const junk = Buffer.from('not an image');
+    expect(await trimTransparentEdges(junk)).toBe(junk);
+  }, encodingTimeout);
+
+  it('keeps a fully transparent upload rather than trimming it to nothing', async () => {
+    const blank = await sharp({
+      create: { width: 200, height: 200, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    })
+      .png()
+      .toBuffer();
+
+    const { width } = await sharp(await trimTransparentEdges(blank)).metadata();
+    expect(width).toBe(200);
   }, encodingTimeout);
 });
