@@ -45,7 +45,9 @@ export default async function SiteHeader({ locale }: { locale: Locale }) {
         >
           <Wordmark
             className="text-2xl md:text-[1.7rem]"
-            logoClassName="h-8 md:h-10"
+            /* Matches the text wordmark's own measured cap height at this
+               breakpoint pair (17px / 19.5px) — see Wordmark.tsx. */
+            logoClassName="h-[17px] md:h-[19.5px]"
             logoUrl={brand.logoUrl}
             name={site.name}
           />
