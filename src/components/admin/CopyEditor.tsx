@@ -4,7 +4,13 @@ import { useMemo, useState } from 'react';
 import { ChevronDown, Plus, RotateCcw, Search, X } from 'lucide-react';
 
 import { adminCard, adminField, adminGhostButton, adminLabel, adminPrimaryButton } from './admin-ui';
-import { sameCopyValue, type CopyField, type CopyValue } from '@/lib/copy-schema';
+import CopyHistory from './CopyHistory';
+import {
+  sameCopyValue,
+  type CopyField,
+  type CopySnapshot,
+  type CopyValue,
+} from '@/lib/copy-schema';
 import {
   groupKeyForPath,
   isLongText,
@@ -21,6 +27,8 @@ type Props = {
   fields: CopyField[];
   /** What is currently stored on top of them, keyed by path. */
   stored: { en: Record<string, CopyValue>; zh: Record<string, CopyValue> };
+  /** Previous publishes of this screen, newest first. */
+  snapshots: CopySnapshot[];
   storageConfigured: boolean;
 };
 
@@ -53,7 +61,13 @@ function asList(value: CopyValue): string[] {
   return typeof value === 'string' ? [value] : value;
 }
 
-export default function CopyEditor({ namespace, fields, stored, storageConfigured }: Props) {
+export default function CopyEditor({
+  namespace,
+  fields,
+  stored,
+  snapshots,
+  storageConfigured,
+}: Props) {
   const initial = useMemo<Values>(
     () => Object.fromEntries(fields.map((field) => [field.path, effective(field, stored)])),
     [fields, stored],
@@ -71,6 +85,7 @@ export default function CopyEditor({ namespace, fields, stored, storageConfigure
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState('');
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  const [history, setHistory] = useState(snapshots);
 
   const groups = useMemo(() => {
     const byKey = new Map<string, CopyField[]>();
@@ -191,6 +206,7 @@ export default function CopyEditor({ namespace, fields, stored, storageConfigure
     }
 
     setSaved(values);
+    if (body.history) setHistory(body.history);
     setStatus(
       entries.length === 1 ? '1 change published.' : `${entries.length} changes published.`,
     );
@@ -231,6 +247,37 @@ export default function CopyEditor({ namespace, fields, stored, storageConfigure
           </button>
         </div>
       </div>
+
+      <CopyHistory
+        namespace={namespace}
+        snapshots={history}
+        disabled={busy || dirtyPaths.length > 0}
+        onRestored={(body) => {
+          /* Rebuild every field from the restored overlay plus the code
+             defaults, so the screen matches what the site will now serve. */
+          const restored: Values = Object.fromEntries(
+            fields.map((field) => [
+              field.path,
+              {
+                en: body.values.en[field.path] ?? field.en,
+                zh: body.values.zh[field.path] ?? field.zh,
+              },
+            ]),
+          );
+
+          setValues(restored);
+          setSaved(restored);
+          setHistory(body.history);
+          setErrors({});
+          setStatus('Reverted to the earlier wording.');
+        }}
+      />
+
+      {dirtyPaths.length > 0 ? (
+        <p className="text-[0.65rem] text-mute/60">
+          Undo is unavailable while there are unsaved changes — publish or discard them first.
+        </p>
+      ) : null}
 
       <label className="relative block">
         <span className="sr-only">Search this page&rsquo;s copy</span>

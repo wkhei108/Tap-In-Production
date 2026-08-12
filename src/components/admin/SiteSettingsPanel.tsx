@@ -5,8 +5,9 @@ import { useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 
 import { adminCard, adminField, adminGhostButton, adminLabel, adminPrimaryButton } from './admin-ui';
+import MediaVersions from './MediaVersions';
 import { acceptedBrandTypes } from '@/lib/photo-schema';
-import type { BrandAssets, BrandAssetKind } from '@/lib/campaign-schema';
+import type { BrandAssets, BrandAssetKind, MediaVersion } from '@/lib/campaign-schema';
 import type { ResolvedSite } from '@/lib/site-content';
 
 /* ==========================================================================
@@ -21,12 +22,15 @@ import type { ResolvedSite } from '@/lib/site-content';
 type Props = {
   initialSettings: ResolvedSite;
   initialBrand: BrandAssets;
+  /** Previous versions per asset, keyed `brand:<kind>`. */
+  initialHistory: Record<string, MediaVersion[]>;
   storageConfigured: boolean;
 };
 
 export default function SiteSettingsPanel({
   initialSettings,
   initialBrand,
+  initialHistory,
   storageConfigured,
 }: Props) {
   const [values, setValues] = useState({
@@ -184,7 +188,7 @@ export default function SiteSettingsPanel({
         </div>
       </section>
 
-      <BrandPanel initialBrand={initialBrand} />
+      <BrandPanel initialBrand={initialBrand} initialHistory={initialHistory} />
     </div>
   );
 }
@@ -214,7 +218,13 @@ const brandAssets: Array<{ kind: BrandAssetKind; label: string; hint: string }> 
   },
 ];
 
-function BrandPanel({ initialBrand }: { initialBrand: BrandAssets }) {
+function BrandPanel({
+  initialBrand,
+  initialHistory,
+}: {
+  initialBrand: BrandAssets;
+  initialHistory: Record<string, MediaVersion[]>;
+}) {
   const [brand, setBrand] = useState(initialBrand);
 
   return (
@@ -234,6 +244,7 @@ function BrandPanel({ initialBrand }: { initialBrand: BrandAssets }) {
             key={asset.kind}
             asset={asset}
             url={brand[fieldFor(asset.kind)]}
+            initialVersions={initialHistory[`brand:${asset.kind}`] ?? []}
             onChange={(next) => setBrand(next)}
           />
         ))}
@@ -255,15 +266,18 @@ function fieldFor(kind: BrandAssetKind): keyof BrandAssets {
 function BrandAssetCard({
   asset,
   url,
+  initialVersions,
   onChange,
 }: {
   asset: { kind: BrandAssetKind; label: string; hint: string };
   url?: string;
+  initialVersions: MediaVersion[];
   onChange: (brand: BrandAssets) => void;
 }) {
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [versions, setVersions] = useState(initialVersions);
   const fileInput = useRef<HTMLInputElement>(null);
 
   async function upload(file: File) {
@@ -285,6 +299,7 @@ function BrandAssetCard({
     }
 
     onChange(body.brand ?? {});
+    if (body.versions) setVersions(body.versions);
     setStatus('Published.');
   }
 
@@ -306,7 +321,8 @@ function BrandAssetCard({
     }
 
     onChange(body.brand ?? {});
-    setStatus('Removed — the built-in artwork is back.');
+    if (body.versions) setVersions(body.versions);
+    setStatus('Removed — the built-in artwork is back. You can put yours back below.');
   }
 
   return (
@@ -368,6 +384,18 @@ function BrandAssetCard({
       <p aria-live="polite" className="text-sm text-mute empty:hidden">
         {status}
       </p>
+
+      <MediaVersions
+        historyKey={`brand:${asset.kind}`}
+        versions={versions}
+        fit="contain"
+        disabled={busy}
+        onRestored={(body) => {
+          setVersions(body.versions);
+          onChange((body.brand as BrandAssets) ?? {});
+          setStatus('Restored.');
+        }}
+      />
     </div>
   );
 }

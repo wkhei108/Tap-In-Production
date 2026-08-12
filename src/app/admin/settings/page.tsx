@@ -34,6 +34,7 @@ export default async function AdminSettingsPage() {
         <SiteSettingsPanel
           initialSettings={mergeSite(index)}
           initialBrand={index.brand ?? {}}
+          initialHistory={index.mediaHistory ?? {}}
           storageConfigured={isPhotoStorageConfigured()}
         />
       </main>

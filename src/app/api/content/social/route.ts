@@ -7,6 +7,7 @@ import { toPhotoFieldErrors } from '@/lib/photo-schema';
 import { isPhotoStorageConfigured } from '@/lib/photo-storage';
 import { clearSocialPostImage, mergeSocialPosts, resolveSocialPosts, setSocialPost } from '@/lib/site-content';
 import { readSiteIndex } from '@/lib/campaigns';
+import { historyKey, readHistory } from '@/lib/media-history';
 import { socialPosts } from '@/content/social';
 
 export const runtime = 'nodejs';
@@ -115,6 +116,7 @@ export async function POST(request: Request) {
     ok: true,
     id: values.id,
     post: posts.find((post) => post.id === values.id) ?? null,
+    versions: readHistory(result.data, historyKey('social', values.id)),
   });
 }
 
@@ -142,5 +144,9 @@ export async function DELETE(request: Request) {
 
   refreshEditorScreen('home');
 
-  return NextResponse.json({ ok: true, id });
+  return NextResponse.json({
+    ok: true,
+    id,
+    versions: readHistory(result.data, historyKey('social', id)),
+  });
 }

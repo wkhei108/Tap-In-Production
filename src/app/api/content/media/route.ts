@@ -4,6 +4,7 @@ import { guardAdmin, refreshEditorScreen } from '@/lib/admin-guard';
 import { uploadProcessedImage } from '@/lib/admin-upload';
 import { mediaSlotTextSchema, type MediaSlotRecord } from '@/lib/campaign-schema';
 import { mediaSlotFor } from '@/lib/media-slots';
+import { historyKey, readHistory } from '@/lib/media-history';
 import { toPhotoFieldErrors } from '@/lib/photo-schema';
 import { isPhotoStorageConfigured } from '@/lib/photo-storage';
 import { clearPageMediaSlot, resolvePageMedia, setPageMediaSlot } from '@/lib/site-content';
@@ -121,7 +122,12 @@ export async function POST(request: Request) {
 
   refreshEditorScreen(definition.group);
 
-  return NextResponse.json({ ok: true, slot: values.slot, media: record });
+  return NextResponse.json({
+    ok: true,
+    slot: values.slot,
+    media: record,
+    versions: readHistory(result.data, historyKey('page', values.slot)),
+  });
 }
 
 /** Empty a slot; the layout goes back to its branded placeholder. */
@@ -153,5 +159,10 @@ export async function DELETE(request: Request) {
 
   refreshEditorScreen(definition.group);
 
-  return NextResponse.json({ ok: true, slot, media: null });
+  return NextResponse.json({
+    ok: true,
+    slot,
+    media: null,
+    versions: readHistory(result.data, historyKey('page', slot)),
+  });
 }

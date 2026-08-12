@@ -1,7 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { cache } from 'react';
 import { list, put } from '@vercel/blob';
 
 import {
+  copyHistoryLimit,
   copyOverlaySchema,
   emptyCopyOverlay,
   flattenDictionaries,
@@ -10,6 +12,7 @@ import {
   mergeLocalised,
   type CopyField,
   type CopyOverlay,
+  type CopySnapshot,
   type CopyValues,
 } from './copy-schema';
 import { isPhotoStorageConfigured, type StorageResult } from './photo-storage';
@@ -281,5 +284,78 @@ export function copyValuesFor(
   return {
     en: pick(overlay.values.en ?? {}),
     'zh-hk': pick(overlay.values['zh-hk'] ?? {}),
+  };
+}
+
+/* ==========================================================================
+   Publish history
+
+   A published typo used to be reversible only field by field, and only back
+   to what shipped in code — there was no way to say "put it back the way it
+   was ten minutes ago". Each publish now files the previous state of that
+   screen first.
+   ========================================================================== */
+
+export function copyHistoryFor(
+  overlay: CopyOverlay,
+  namespace: CopyNamespace,
+): CopySnapshot[] {
+  return overlay.history?.[namespace] ?? [];
+}
+
+export function snapshotOf(
+  overlay: CopyOverlay,
+  namespace: CopyNamespace,
+  changed: string[],
+): CopySnapshot {
+  const values = copyValuesFor(overlay, namespace);
+
+  return {
+    id: randomUUID(),
+    savedAt: new Date().toISOString(),
+    changed,
+    values: { en: values.en, 'zh-hk': values['zh-hk'] },
+  };
+}
+
+/** File a snapshot against a screen, keeping the most recent few. */
+export function pushSnapshot(overlay: CopyOverlay, namespace: CopyNamespace, snapshot: CopySnapshot): CopyOverlay {
+  const existing = copyHistoryFor(overlay, namespace);
+
+  return {
+    ...overlay,
+    history: {
+      ...(overlay.history ?? {}),
+      [namespace]: [snapshot, ...existing].slice(0, copyHistoryLimit),
+    },
+  };
+}
+
+/**
+ * Replace one screen's stored copy wholesale.
+ *
+ * Paths belonging to other screens are untouched, so restoring the About
+ * page cannot disturb the footer.
+ */
+export function replaceNamespaceValues(
+  overlay: CopyOverlay,
+  namespace: CopyNamespace,
+  values: Record<Locale, CopyValues>,
+): CopyOverlay {
+  const roots = namespaceRoots[namespace];
+
+  const rebuild = (current: CopyValues, replacement: CopyValues): CopyValues => {
+    const kept = Object.fromEntries(
+      Object.entries(current).filter(([path]) => !ownedBy(path, roots)),
+    );
+    return { ...kept, ...replacement };
+  };
+
+  return {
+    ...overlay,
+    values: {
+      en: rebuild(overlay.values.en ?? {}, values.en),
+      'zh-hk': rebuild(overlay.values['zh-hk'] ?? {}, values['zh-hk']),
+    },
   };
 }

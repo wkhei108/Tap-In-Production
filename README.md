@@ -188,6 +188,13 @@ list is walked out of the content rather than maintained by hand.
 | **Navigation & footer** | copy that appears on every page, including the 404 |
 | **Settings** | name, tagline, contact details, and the logo, app mark, favicon and share image |
 
+Every image keeps its **last six versions**, and every screen keeps its **last
+ten publishes**. Replacing a photo or a logo files the old one rather than
+deleting it, so uploading the wrong file is a click to undo rather than
+something to go and find again; removing an image files it too, so "Remove"
+is reversible as well. Restoring files whatever was current on the way past,
+which means a restore is itself undoable.
+
 Two things stay in code deliberately. The long case-study prose (brief,
 challenge, approach, deliverables) lives in `src/content/projects.ts`, where
 the compiler enforces English/Chinese parity. And the number of items in a

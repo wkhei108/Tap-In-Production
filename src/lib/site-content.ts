@@ -1,15 +1,26 @@
 import { del } from '@vercel/blob';
 
-import { mutateSiteIndex, readSiteIndex } from './campaigns';
-import type { StorageResult } from './photo-storage';
+import { readSiteIndex, writeSiteIndex } from './campaigns';
+import { isPhotoStorageConfigured, type StorageResult } from './photo-storage';
 import {
   type BrandAssets,
   type BrandAssetKind,
   type MediaSlotRecord,
+  type MediaVersion,
   type SiteIndex,
   type SiteSettingsRecord,
   type SocialPostRecord,
 } from './campaign-schema';
+import {
+  findVersion,
+  historyKey,
+  newVersion,
+  pushVersion,
+  readHistory,
+  removeVersion,
+  type MediaScope,
+} from './media-history';
+import { mediaSlotFor } from './media-slots';
 import { site } from '@/content/site';
 import { socialPosts, type SocialPost } from '@/content/social';
 import type { Localised } from '@/content/services';
@@ -20,7 +31,29 @@ import type { Localised } from '@/content/services';
    The same overlay contract as campaigns: `src/content/` is the base, the
    index says what the tool changed on top, and an unconfigured or unreadable
    store means the site renders exactly what shipped.
+
+   Every write that displaces an image files the old version in the history
+   log rather than deleting it, so an upload is never a one-way door.
    ========================================================================== */
+
+/**
+ * Write a computed index, then delete only the files it orphaned.
+ *
+ * Deleting after the write is deliberate: if the write fails nothing has
+ * been destroyed, and a failed delete leaves a stray file rather than a
+ * broken page.
+ */
+async function commit(
+  next: SiteIndex,
+  expired: string[] = [],
+): Promise<StorageResult<SiteIndex>> {
+  const written = await writeSiteIndex(next);
+  if (!written.ok) return written;
+
+  for (const url of expired) await del(url).catch(() => {});
+
+  return written;
+}
 
 /* --------------------------------------------------------- Page media slots */
 
@@ -30,43 +63,63 @@ export async function resolvePageMedia(
   return (index ?? (await readSiteIndex())).pageMedia ?? {};
 }
 
+const versionFromSlot = (record: MediaSlotRecord, reason: MediaVersion['reason']) =>
+  newVersion({
+    url: record.url,
+    aspect: record.aspect,
+    altText: record.altText,
+    altTextZh: record.altTextZh,
+    caption: record.caption,
+    reason,
+  });
+
 export async function setPageMediaSlot(
   slot: string,
   record: MediaSlotRecord,
 ): Promise<StorageResult<SiteIndex>> {
+  if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
+
   const current = await readSiteIndex({ fresh: true });
   const previous = current.pageMedia?.[slot];
 
-  const written = await mutateSiteIndex((index) => ({
-    ...index,
+  let next: SiteIndex = {
+    ...current,
     pageMedia: {
-      ...(index.pageMedia ?? {}),
+      ...(current.pageMedia ?? {}),
       [slot]: { ...record, updatedAt: new Date().toISOString() },
     },
-  }));
+  };
+  let expired: string[] = [];
 
-  /* A replaced image is nothing else's business — every upload gets a fresh
-     name, so the old file has no other reference. */
-  if (written.ok && previous && previous.url !== record.url) {
-    await del(previous.url).catch(() => {});
+  /* Only file a version when the image itself changed — correcting alt text
+     should not push five copies of the same photo into the history. */
+  if (previous && previous.url !== record.url) {
+    ({ index: next, expired } = pushVersion(
+      next,
+      historyKey('page', slot),
+      versionFromSlot(previous, 'replaced'),
+    ));
   }
 
-  return written;
+  return commit(next, expired);
 }
 
 export async function clearPageMediaSlot(slot: string): Promise<StorageResult<SiteIndex>> {
+  if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
+
   const current = await readSiteIndex({ fresh: true });
   const previous = current.pageMedia?.[slot];
+  if (!previous) return { ok: true, data: current };
 
-  const written = await mutateSiteIndex((index) => {
-    if (!index.pageMedia?.[slot]) return index;
-    const { [slot]: _dropped, ...rest } = index.pageMedia;
-    return { ...index, pageMedia: rest };
-  });
+  const { [slot]: _dropped, ...rest } = current.pageMedia ?? {};
 
-  if (written.ok && previous) await del(previous.url).catch(() => {});
+  const { index: next, expired } = pushVersion(
+    { ...current, pageMedia: rest },
+    historyKey('page', slot),
+    versionFromSlot(previous, 'removed'),
+  );
 
-  return written;
+  return commit(next, expired);
 }
 
 /* ------------------------------------------------------------ Instagram rail */
@@ -103,43 +156,64 @@ export async function setSocialPost(
   id: string,
   record: SocialPostRecord,
 ): Promise<StorageResult<SiteIndex>> {
+  if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
+
   const current = await readSiteIndex({ fresh: true });
   const previous = current.socialPosts?.[id];
 
-  const written = await mutateSiteIndex((index) => ({
-    ...index,
+  let next: SiteIndex = {
+    ...current,
     socialPosts: {
-      ...(index.socialPosts ?? {}),
-      [id]: {
-        ...(index.socialPosts?.[id] ?? {}),
-        ...record,
-        updatedAt: new Date().toISOString(),
-      },
+      ...(current.socialPosts ?? {}),
+      [id]: { ...(previous ?? {}), ...record, updatedAt: new Date().toISOString() },
     },
-  }));
+  };
+  let expired: string[] = [];
 
-  if (written.ok && previous?.url && record.url && previous.url !== record.url) {
-    await del(previous.url).catch(() => {});
+  if (previous?.url && record.url && previous.url !== record.url) {
+    ({ index: next, expired } = pushVersion(
+      next,
+      historyKey('social', id),
+      newVersion({
+        url: previous.url,
+        aspect: previous.aspect,
+        altText: previous.altText,
+        altTextZh: previous.altTextZh,
+        caption: previous.caption,
+        href: previous.href,
+        reason: 'replaced',
+      }),
+    ));
   }
 
-  return written;
+  return commit(next, expired);
 }
 
 /** Drop the uploaded image, keeping the link and words. */
 export async function clearSocialPostImage(id: string): Promise<StorageResult<SiteIndex>> {
+  if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
+
   const current = await readSiteIndex({ fresh: true });
-  const previous = current.socialPosts?.[id]?.url;
+  const previous = current.socialPosts?.[id];
+  if (!previous?.url) return { ok: true, data: current };
 
-  const written = await mutateSiteIndex((index) => {
-    const record = index.socialPosts?.[id];
-    if (!record) return index;
-    const { url: _dropped, ...rest } = record;
-    return { ...index, socialPosts: { ...index.socialPosts, [id]: rest } };
-  });
+  const { url: _dropped, ...rest } = previous;
 
-  if (written.ok && previous) await del(previous).catch(() => {});
+  const { index: next, expired } = pushVersion(
+    { ...current, socialPosts: { ...current.socialPosts, [id]: rest } },
+    historyKey('social', id),
+    newVersion({
+      url: previous.url,
+      aspect: previous.aspect,
+      altText: previous.altText,
+      altTextZh: previous.altTextZh,
+      caption: previous.caption,
+      href: previous.href,
+      reason: 'removed',
+    }),
+  );
 
-  return written;
+  return commit(next, expired);
 }
 
 /* ------------------------------------------------------------ Brand artwork */
@@ -159,34 +233,145 @@ export async function setBrandAsset(
   kind: BrandAssetKind,
   url: string,
 ): Promise<StorageResult<SiteIndex>> {
+  if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
+
   const field = brandField[kind];
   const current = await readSiteIndex({ fresh: true });
   const previous = current.brand?.[field];
 
-  const written = await mutateSiteIndex((index) => ({
-    ...index,
-    brand: { ...(index.brand ?? {}), [field]: url },
-  }));
+  let next: SiteIndex = { ...current, brand: { ...(current.brand ?? {}), [field]: url } };
+  let expired: string[] = [];
 
-  if (written.ok && previous && previous !== url) await del(previous).catch(() => {});
+  if (previous && previous !== url) {
+    ({ index: next, expired } = pushVersion(
+      next,
+      historyKey('brand', kind),
+      newVersion({ url: previous, reason: 'replaced' }),
+    ));
+  }
 
-  return written;
+  return commit(next, expired);
 }
 
 export async function clearBrandAsset(kind: BrandAssetKind): Promise<StorageResult<SiteIndex>> {
+  if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
+
   const field = brandField[kind];
   const current = await readSiteIndex({ fresh: true });
   const previous = current.brand?.[field];
+  if (!previous) return { ok: true, data: current };
 
-  const written = await mutateSiteIndex((index) => {
-    if (!index.brand?.[field]) return index;
-    const { [field]: _dropped, ...rest } = index.brand;
-    return { ...index, brand: rest };
-  });
+  const { [field]: _dropped, ...rest } = current.brand ?? {};
 
-  if (written.ok && previous) await del(previous).catch(() => {});
+  const { index: next, expired } = pushVersion(
+    { ...current, brand: rest },
+    historyKey('brand', kind),
+    newVersion({ url: previous, reason: 'removed' }),
+  );
 
-  return written;
+  return commit(next, expired);
+}
+
+/* ------------------------------------------------------------ Restoring */
+
+/**
+ * Put an earlier version back.
+ *
+ * Whatever was current is filed into the log on the way past, so a restore
+ * is itself undoable — including a restore that turns out to be the wrong
+ * one. The entry being restored leaves the log, because it is now current.
+ */
+export async function restoreMediaVersion(
+  key: string,
+  scope: MediaScope,
+  id: string,
+  versionId: string,
+): Promise<StorageResult<SiteIndex>> {
+  if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
+
+  const current = await readSiteIndex({ fresh: true });
+  const version = findVersion(current, key, versionId);
+  if (!version) return { ok: false, reason: 'not-found' };
+
+  let next = current;
+  let expired: string[] = [];
+
+  const file = (outgoing: MediaVersion | null) => {
+    if (!outgoing) return;
+    ({ index: next, expired } = pushVersion(next, key, outgoing));
+  };
+
+  if (scope === 'page') {
+    const existing = current.pageMedia?.[id];
+    file(existing ? versionFromSlot(existing, 'replaced') : null);
+
+    next = {
+      ...next,
+      pageMedia: {
+        ...(next.pageMedia ?? {}),
+        [id]: {
+          url: version.url,
+          aspect: version.aspect ?? mediaSlotFor(id)?.aspect ?? 'landscape',
+          altText: version.altText || existing?.altText || 'Restored image',
+          altTextZh: version.altTextZh || existing?.altTextZh || 'Restored image',
+          caption: version.caption,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    };
+  } else if (scope === 'social') {
+    const existing = current.socialPosts?.[id];
+    file(
+      existing?.url
+        ? newVersion({
+            url: existing.url,
+            aspect: existing.aspect,
+            altText: existing.altText,
+            altTextZh: existing.altTextZh,
+            caption: existing.caption,
+            href: existing.href,
+            reason: 'replaced',
+          })
+        : null,
+    );
+
+    next = {
+      ...next,
+      socialPosts: {
+        ...(next.socialPosts ?? {}),
+        [id]: {
+          ...(existing ?? {}),
+          url: version.url,
+          aspect: version.aspect ?? existing?.aspect,
+          altText: version.altText ?? existing?.altText,
+          altTextZh: version.altTextZh ?? existing?.altTextZh,
+          caption: version.caption ?? existing?.caption,
+          href: version.href ?? existing?.href,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    };
+  } else {
+    const field = brandField[id as BrandAssetKind];
+    if (!field) return { ok: false, reason: 'not-found' };
+
+    const existing = current.brand?.[field];
+    file(existing ? newVersion({ url: existing, reason: 'replaced' }) : null);
+
+    next = { ...next, brand: { ...(next.brand ?? {}), [field]: version.url } };
+  }
+
+  next = removeVersion(next, key, versionId);
+
+  return commit(next, expired);
+}
+
+/** The history log for one slot, newest first. */
+export async function resolveMediaHistory(
+  key: string,
+  index?: SiteIndex,
+): Promise<MediaVersion[]> {
+  return readHistory(index ?? (await readSiteIndex()), key);
 }
 
 /* --------------------------------------------------------- Site identity */
@@ -251,8 +436,8 @@ export function resolvedSocialLinks(resolved: ResolvedSite) {
 export async function saveSiteSettings(
   settings: SiteSettingsRecord,
 ): Promise<StorageResult<SiteIndex>> {
-  return mutateSiteIndex((index) => ({
-    ...index,
-    settings: { ...settings, updatedAt: new Date().toISOString() },
-  }));
+  if (!isPhotoStorageConfigured()) return { ok: false, reason: 'storage-not-configured' };
+
+  const current = await readSiteIndex({ fresh: true });
+  return commit({ ...current, settings: { ...settings, updatedAt: new Date().toISOString() } });
 }

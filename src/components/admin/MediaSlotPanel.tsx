@@ -5,7 +5,8 @@ import { useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
 
 import { adminCard, adminField, adminGhostButton, adminLabel, adminPrimaryButton } from './admin-ui';
-import type { MediaSlotRecord } from '@/lib/campaign-schema';
+import MediaVersions from './MediaVersions';
+import type { MediaSlotRecord, MediaVersion } from '@/lib/campaign-schema';
 import type { MediaSlotDefinition } from '@/lib/media-slots';
 import { acceptedUploadTypes } from '@/lib/photo-schema';
 
@@ -27,10 +28,17 @@ const previewRatio: Record<string, string> = {
 type Props = {
   slots: MediaSlotDefinition[];
   initialMedia: Record<string, MediaSlotRecord>;
+  /** Previous versions per slot, keyed `page:<slot>`. */
+  initialHistory: Record<string, MediaVersion[]>;
   storageConfigured: boolean;
 };
 
-export default function MediaSlotPanel({ slots, initialMedia, storageConfigured }: Props) {
+export default function MediaSlotPanel({
+  slots,
+  initialMedia,
+  initialHistory,
+  storageConfigured,
+}: Props) {
   const [media, setMedia] = useState(initialMedia);
 
   if (slots.length === 0) return null;
@@ -64,6 +72,7 @@ export default function MediaSlotPanel({ slots, initialMedia, storageConfigured 
           key={slot.key}
           slot={slot}
           record={media[slot.key]}
+          initialVersions={initialHistory[`page:${slot.key}`] ?? []}
           onChange={(record) =>
             setMedia((current) => {
               const next = { ...current };
@@ -83,10 +92,12 @@ export default function MediaSlotPanel({ slots, initialMedia, storageConfigured 
 function SlotCard({
   slot,
   record,
+  initialVersions,
   onChange,
 }: {
   slot: MediaSlotDefinition;
   record?: MediaSlotRecord;
+  initialVersions: MediaVersion[];
   onChange: (record: MediaSlotRecord | null) => void;
 }) {
   const [altText, setAltText] = useState(record?.altText ?? '');
@@ -98,6 +109,7 @@ function SlotCard({
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const [versions, setVersions] = useState(initialVersions);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const hasImage = Boolean(record?.url || preview);
@@ -147,6 +159,7 @@ function SlotCard({
 
     discardPreview();
     onChange(body.media ?? null);
+    if (body.versions) setVersions(body.versions);
     setStatus('Published.');
   }
 
@@ -173,7 +186,8 @@ function SlotCard({
     setCaptionEn('');
     setCaptionZh('');
     onChange(null);
-    setStatus('Removed — the page shows its placeholder again.');
+    if (body.versions) setVersions(body.versions);
+    setStatus('Removed — the page shows its placeholder again. You can put it back below.');
   }
 
   return (
@@ -343,6 +357,25 @@ function SlotCard({
           <p aria-live="polite" className="text-sm text-mute empty:hidden">
             {status}
           </p>
+
+          <MediaVersions
+            historyKey={`page:${slot.key}`}
+            versions={versions}
+            fallbackAspect={slot.aspect}
+            disabled={busy}
+            onRestored={(body) => {
+              setVersions(body.versions);
+              const restored = body.media as MediaSlotRecord | null;
+              onChange(restored);
+              if (restored) {
+                setAltText(restored.altText);
+                setAltTextZh(restored.altTextZh);
+                setCaptionEn(restored.caption?.en ?? '');
+                setCaptionZh(restored.caption?.['zh-hk'] ?? '');
+              }
+              setStatus('Restored.');
+            }}
+          />
         </div>
       </div>
     </div>
