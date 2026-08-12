@@ -1,5 +1,5 @@
 import { cache } from 'react';
-import { del, list, put } from '@vercel/blob';
+import { del, put } from '@vercel/blob';
 
 import {
   campaignRecordSchema,
@@ -11,7 +11,7 @@ import {
   type HeroRecord,
   type SiteIndex,
 } from './campaign-schema';
-import { isPhotoStorageConfigured, type StorageResult } from './photo-storage';
+import { findBlobUrl, isPhotoStorageConfigured, type StorageResult } from './photo-storage';
 import {
   projectCategories,
   projects,
@@ -39,8 +39,7 @@ const indexPath = 'media/site-index.json';
 const indexRevalidateSeconds = 900;
 
 async function findIndexUrl(): Promise<string | null> {
-  const { blobs } = await list({ prefix: indexPath, limit: 1 });
-  return blobs.find((blob) => blob.pathname === indexPath)?.url ?? null;
+  return findBlobUrl(indexPath);
 }
 
 async function fetchSiteIndex({ fresh }: { fresh: boolean }): Promise<SiteIndex> {

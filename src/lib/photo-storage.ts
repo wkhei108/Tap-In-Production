@@ -1,4 +1,4 @@
-import { del, list, put } from '@vercel/blob';
+import { BlobNotFoundError, del, head, put } from '@vercel/blob';
 import { photoManifestSchema, type ManagedPhoto, type PhotoManifest } from './photo-schema';
 
 /* ==========================================================================
@@ -41,9 +41,27 @@ function manifestPath(slug: string): string {
   return `${projectPrefix(slug)}manifest.json`;
 }
 
-async function findBlobUrl(pathname: string): Promise<string | null> {
-  const { blobs } = await list({ prefix: pathname, limit: 1 });
-  return blobs.find((blob) => blob.pathname === pathname)?.url ?? null;
+/**
+ * The URL a known pathname currently resolves to, or `null` if nothing has
+ * been written there yet.
+ *
+ * Every pathname in this project is fixed — `addRandomSuffix: false` on every
+ * `put()` — so this is a direct lookup, not a search: `head()` reads a single
+ * known key. It used to be `list({ prefix, limit: 1 })`, scanning for a
+ * pathname it could have looked up directly, and Vercel Blob doesn't price
+ * that scan the same as a lookup — this call was the entire reason a Hobby
+ * store hit its monthly operation cap in under a day of admin use, with
+ * storage and bandwidth barely touched. Exported so `campaigns.ts` and
+ * `copy.ts` share this fix rather than each keeping their own copy of the
+ * mistake.
+ */
+export async function findBlobUrl(pathname: string): Promise<string | null> {
+  try {
+    return (await head(pathname)).url;
+  } catch (error) {
+    if (error instanceof BlobNotFoundError) return null;
+    throw error;
+  }
 }
 
 /**
