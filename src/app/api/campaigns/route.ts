@@ -198,7 +198,9 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: false, error: 'validation' }, { status: 400 });
   }
 
-  const known = await resolveProjects();
+  /* Fresh: a campaign created in the last few minutes must not be filtered
+     out of the order it is being given. */
+  const known = await resolveProjects(await readSiteIndex({ fresh: true }));
   const valid = new Set(known.map((project) => project.slug));
   const slugs = parsed.data.slugs.filter((slug) => valid.has(slug));
 

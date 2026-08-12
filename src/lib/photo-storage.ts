@@ -42,26 +42,75 @@ function manifestPath(slug: string): string {
 }
 
 /**
- * The URL a known pathname currently resolves to, or `null` if nothing has
- * been written there yet.
+ * Pathname → URL, remembered for the life of the process.
  *
- * Every pathname in this project is fixed — `addRandomSuffix: false` on every
- * `put()` — so this is a direct lookup, not a search: `head()` reads a single
- * known key. It used to be `list({ prefix, limit: 1 })`, scanning for a
- * pathname it could have looked up directly, and Vercel Blob doesn't price
- * that scan the same as a lookup — this call was the entire reason a Hobby
- * store hit its monthly operation cap in under a day of admin use, with
- * storage and bandwidth barely touched. Exported so `campaigns.ts` and
- * `copy.ts` share this fix rather than each keeping their own copy of the
- * mistake.
+ * Safe to hold indefinitely because a pathname's URL never changes: every
+ * `put()` here passes `addRandomSuffix: false` and `allowOverwrite: true`, so
+ * a public blob is always `https://<store>.public.blob.vercel-storage.com/
+ * <pathname>`. Overwriting a document, or deleting and recreating it, lands
+ * on the same URL. Only the *contents* change, and those are still fetched
+ * every time.
+ */
+const urlByPathname = new Map<string, string>();
+
+/**
+ * Lookups currently in flight, so concurrent callers share one request.
+ *
+ * A page render asks for campaigns, the hero, settings, brand artwork and its
+ * media slots at once — all the same document. Without this they each start
+ * their own lookup before any of them finishes writing to the memo above, and
+ * one render pays for five resolutions it only needed one of.
+ */
+const inFlight = new Map<string, Promise<string | null>>();
+
+/**
+ * Record a URL a write already told us about.
+ *
+ * A `put()` returns the URL it wrote to, so the next read needs no lookup at
+ * all — which matters because the admin reads the document it just wrote on
+ * almost every request.
+ */
+export function rememberBlobUrl(pathname: string, url: string): void {
+  urlByPathname.set(pathname, url);
+}
+
+/**
+ * The URL a known pathname resolves to, or `null` if nothing is there yet.
+ *
+ * Every pathname in this project is fixed, so this is a direct lookup rather
+ * than a search: `head()` reads one known key. It used to be
+ * `list({ prefix, limit: 1 })`, scanning the store for a pathname the caller
+ * already knew — and Vercel prices a scan as an *advanced* operation while a
+ * lookup is a *simple* one, with a Hobby allowance five times larger. That
+ * single call is what exhausted a store's monthly quota in under a day, with
+ * storage and bandwidth barely touched.
+ *
+ * The result is then memoised, so a warm instance spends nothing at all on
+ * resolution. A miss is deliberately not cached — the document may be written
+ * a moment later, and the first write must not be invisible.
  */
 export async function findBlobUrl(pathname: string): Promise<string | null> {
-  try {
-    return (await head(pathname)).url;
-  } catch (error) {
-    if (error instanceof BlobNotFoundError) return null;
-    throw error;
-  }
+  const known = urlByPathname.get(pathname);
+  if (known) return known;
+
+  const pending = inFlight.get(pathname);
+  if (pending) return pending;
+
+  const lookup = (async () => {
+    try {
+      const { url } = await head(pathname);
+      urlByPathname.set(pathname, url);
+      return url;
+    } catch (error) {
+      if (error instanceof BlobNotFoundError) return null;
+      throw error;
+    } finally {
+      inFlight.delete(pathname);
+    }
+  })();
+
+  inFlight.set(pathname, lookup);
+  return lookup;
 }
 
 /**
@@ -112,13 +161,15 @@ async function writeManifest(
   manifest: PhotoManifest,
 ): Promise<StorageResult<PhotoManifest>> {
   try {
-    await put(manifestPath(slug), JSON.stringify(manifest), {
+    const blob = await put(manifestPath(slug), JSON.stringify(manifest), {
       access: 'public',
       contentType: 'application/json',
       addRandomSuffix: false,
       allowOverwrite: true,
       cacheControlMaxAge: 60,
     });
+
+    rememberBlobUrl(manifestPath(slug), blob.url);
 
     return { ok: true, data: manifest };
   } catch (error) {

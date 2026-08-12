@@ -5,7 +5,7 @@ import { uploadProcessedImage } from '@/lib/admin-upload';
 import { socialPostTextSchema, type SocialPostRecord } from '@/lib/campaign-schema';
 import { toPhotoFieldErrors } from '@/lib/photo-schema';
 import { isPhotoStorageConfigured } from '@/lib/photo-storage';
-import { clearSocialPostImage, mergeSocialPosts, resolveSocialPosts, setSocialPost } from '@/lib/site-content';
+import { clearSocialPostImage, mergeSocialPosts, setSocialPost } from '@/lib/site-content';
 import { readSiteIndex } from '@/lib/campaigns';
 import { historyKey, readHistory } from '@/lib/media-history';
 import { socialPosts } from '@/content/social';
@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     ok: true,
     storageConfigured: isPhotoStorageConfigured(),
-    posts: await resolveSocialPosts(),
+    posts: mergeSocialPosts(await readSiteIndex({ fresh: true })),
   });
 }
 

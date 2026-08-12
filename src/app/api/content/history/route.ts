@@ -54,7 +54,10 @@ export async function GET(request: Request) {
     if (!parseHistoryKey(key)) {
       return NextResponse.json({ ok: false, error: 'unknown-key' }, { status: 400 });
     }
-    return NextResponse.json({ ok: true, versions: readHistory(await readSiteIndex(), key) });
+    return NextResponse.json({
+      ok: true,
+      versions: readHistory(await readSiteIndex({ fresh: true }), key),
+    });
   }
 
   if (namespace && isCopyNamespace(namespace)) {

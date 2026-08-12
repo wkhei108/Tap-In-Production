@@ -12,11 +12,12 @@ import { isPhotoStorageConfigured } from '@/lib/photo-storage';
 import { historyKey, readHistory } from '@/lib/media-history';
 import {
   clearBrandAsset,
+  mergeSite,
   resolveBrand,
-  resolveSite,
   saveSiteSettings,
   setBrandAsset,
 } from '@/lib/site-content';
+import { readSiteIndex } from '@/lib/campaigns';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -37,11 +38,13 @@ export async function GET(request: Request) {
   const denied = guardAdmin(request);
   if (denied) return denied;
 
+  const index = await readSiteIndex({ fresh: true });
+
   return NextResponse.json({
     ok: true,
     storageConfigured: isPhotoStorageConfigured(),
-    settings: await resolveSite(),
-    brand: await resolveBrand(),
+    settings: mergeSite(index),
+    brand: await resolveBrand(index),
   });
 }
 
@@ -102,7 +105,9 @@ export async function PUT(request: Request) {
 
   refreshEverything();
 
-  return NextResponse.json({ ok: true, settings: await resolveSite() });
+  /* Built from the document just written, not a re-read that may still be
+     serving the previous one. */
+  return NextResponse.json({ ok: true, settings: mergeSite(result.data) });
 }
 
 /**
