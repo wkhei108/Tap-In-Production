@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { cache } from 'react';
-import { list, put } from '@vercel/blob';
+import { put } from '@vercel/blob';
 
 import {
   copyHistoryLimit,
@@ -15,7 +15,7 @@ import {
   type CopySnapshot,
   type CopyValues,
 } from './copy-schema';
-import { isPhotoStorageConfigured, type StorageResult } from './photo-storage';
+import { findBlobUrl, isPhotoStorageConfigured, type StorageResult } from './photo-storage';
 import type { Locale } from './i18n';
 import { en } from '@/content/en';
 import { zhHK } from '@/content/zh-hk';
@@ -51,8 +51,7 @@ const overlayPath = 'media/content/copy.json';
 const overlayRevalidateSeconds = 900;
 
 async function findOverlayUrl(): Promise<string | null> {
-  const { blobs } = await list({ prefix: overlayPath, limit: 1 });
-  return blobs.find((blob) => blob.pathname === overlayPath)?.url ?? null;
+  return findBlobUrl(overlayPath);
 }
 
 async function fetchOverlay({ fresh }: { fresh: boolean }): Promise<CopyOverlay> {
